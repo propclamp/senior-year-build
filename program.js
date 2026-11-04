@@ -48,6 +48,7 @@
     speedbench: { n: 'Speed Bench', cue: 'Every rep as fast as possible. If it slows down, the set is over.' },
     speeddead: { n: 'Speed Deadlift', cue: 'Yank nothing. Get tight, then rip it off the floor as fast as you can.' },
     dips: { n: 'Dips', cue: 'Chest slightly forward, elbows to 90 degrees. Add weight when all reps are clean.' },
+    pulldown: { n: 'Lat Pulldown', cue: 'Pull to the upper chest with the elbows driving down. Control it back up, no swinging.' },
     pullup: { n: 'Pull-Up', cue: 'Full hang to chin over the bar. Use a band if reps fall short.' },
     wpullup: { n: 'Weighted Pull-Up', cue: 'Full hang to chin over the bar. Add weight only when every rep is clean.' },
     csrow: { n: 'Chest-Supported Row', cue: 'Chest stays on the pad. Pull elbows back, pause, lower slow.' },
@@ -171,7 +172,7 @@
         ] },
         tue: { title: 'Upper', kind: 'lift', min: 65, warm: 'upper', items: [
           { x: 'bench', base: 'bench', s: ['4x6@70', '4x5@75'], rest: 150, note: 'Pause on the chest for one count.' },
-          { x: 'pullup', s: '3x6', e: 'Clean reps', rest: 90 },
+          { x: 'pulldown', s: '3x10', e: 'RPE 7', rest: 90 },
           { x: 'seateddb', s: '3x10', e: 'RPE 7', rest: 75 },
           { x: 'csrow', s: '4x10', e: 'RPE 7', rest: 75 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
@@ -220,7 +221,7 @@
         ] },
         tue: { title: 'Upper Heavy', kind: 'lift', min: 80, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 180, s: ['4x8@72.5', '4x8@75', '5x6@77.5', '3x5@82.5,1x5+@82.5', '3x5@70'] },
-          { x: 'wpullup', s: '4x8', e: 'RPE 8', rest: 120 },
+          { x: 'pulldown', s: '4x8', e: 'RPE 8', rest: 120 },
           { x: 'seateddb', s: '4x8', e: 'RPE 8', rest: 90 },
           { x: 'bbrow', s: '4x8', e: 'RPE 8', rest: 90 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
@@ -271,7 +272,7 @@
         ] },
         tue: { title: 'Upper Heavy', kind: 'lift', min: 75, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 210, s: ['5x5@80', '5x4@82.5', '5x3@87.5', '3x3@90,1x3+@90', '3x3@70'] },
-          { x: 'wpullup', s: '4x6', e: 'RPE 8', rest: 120 },
+          { x: 'pulldown', s: '4x6', e: 'RPE 8', rest: 120 },
           { x: 'seateddb', s: '4x8', e: 'RPE 8', rest: 90 },
           { x: 'bbrow', s: '4x6', e: 'RPE 8', rest: 90 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
@@ -323,7 +324,7 @@
         ] },
         tue: { title: 'Upper Max', kind: 'lift', min: 75, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 240, s: ['5x3@85', '5x3@87.5', '3x3@90,1x3+@90', '3x2@90,2x1@95', '3x3@70'] },
-          { x: 'wpullup', s: '5x5', e: 'RPE 8', rest: 120 },
+          { x: 'pulldown', s: '5x5', e: 'RPE 8', rest: 120 },
           { x: 'seateddb', s: '4x6', e: 'RPE 8', rest: 90 },
           { x: 'csrow', s: '4x6', e: 'RPE 8', rest: 90 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
@@ -377,7 +378,7 @@
           { x: 'bench', base: 'bench', rest: 210, s: ['4x3@82.5', '4x3@85', '3x3@87.5', '3x2@90', '3x3@70'] },
           { x: 'mbchest', s: '4x4', rest: 60, note: 'Do one set right after each bench set.' },
           { x: 'landmine', s: '3x6/side', e: 'Explosive', rest: 75 },
-          { x: 'pullup', s: '4x8', e: 'Clean reps', rest: 90 },
+          { x: 'pulldown', s: '4x8', e: 'RPE 8', rest: 90 },
           { x: 'seateddb', s: '3x8', e: 'RPE 8', rest: 90 },
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
         ] },
@@ -426,7 +427,7 @@
         tue: { title: 'Upper Short', kind: 'lift', min: 60, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 210, s: ['4x3@82.5', '4x3@85', '3x3@87.5', '3x2@90', '3x3@70'] },
           { x: 'mbchest', s: '3x4', rest: 60 },
-          { x: 'pullup', s: '3x8', e: 'Clean reps', rest: 90 },
+          { x: 'pulldown', s: '3x8', e: 'RPE 8', rest: 90 },
           { x: 'seateddb', s: '3x8', e: 'RPE 8', rest: 90 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
@@ -471,7 +472,7 @@
         ] },
         tue: { title: 'Upper Hold', kind: 'lift', min: 55, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 210, s: ['4x3@85', '3x2@92.5', '3x3@70', null, '3x3@75', '2x3@65'] },
-          { x: 'pullup', s: '3x8', e: 'Clean reps', rest: 90 },
+          { x: 'pulldown', s: '3x8', e: 'RPE 8', rest: 90 },
           { x: 'seateddb', s: '3x8', e: 'RPE 7', rest: 90 },
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
         ] },
