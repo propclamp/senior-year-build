@@ -1,5 +1,5 @@
 /* Keeps the app openable with no signal at the gym. Tries the network first so updates land right away. */
-const CACHE = 'syb-v1';
+const CACHE = 'syb-v2';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'program.js', 'config.js', 'manifest.webmanifest', 'icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -12,7 +12,7 @@ self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request).then(r => {
+    fetch(e.request.url, { cache: 'no-cache' }).then(r => {
       const copy = r.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy));
       return r;

@@ -159,6 +159,9 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .tick { width: 48px; height: 46px; border-radius: 6px; border: 1px solid var(--line); display: grid; place-items: center; color: var(--muted); background: var(--bg); }
 .tick svg { width: 22px; height: 22px; }
 .setrow.done .tick { background: var(--good); border-color: var(--good); color: var(--surface); }
+.rpepick { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.rpepick button { height: 40px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-weight: 700; font-size: 15px; color: var(--muted); }
+.rpepick button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .pill { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); font-weight: 700; color: var(--muted); }
 .pill.done { background: var(--good); border-color: var(--good); color: var(--surface); }

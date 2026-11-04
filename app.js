@@ -3,6 +3,9 @@
   const P = window.PROGRAM;
   const CFG = window.SYB_CONFIG;
   const END = '2027-08-01';
+  const VERSION = '2026-11-04-rpe'; /* Change this and version.json together on every release */
+  const RPE_LIFTS = ['squat', 'bench', 'deadlift', 'press'];
+  const RPES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
   const $ = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
@@ -47,16 +50,49 @@
   let pushTimer = null;
   function put(id, kind, data) {
     S.rows[id] = { id, kind, data, deleted: false, by: S.role, updated_at: new Date().toISOString() };
+    maxCache = null;
     S.outbox[id] = { id, kind, data, deleted: false };
     persist(); paintSync();
     clearTimeout(pushTimer); pushTimer = setTimeout(sync, 1200);
   }
 
-  function maxes() {
+  function testedMaxes() {
     const m = { ...profile().start };
     const rows = live('m:').sort((a, b) => a.date < b.date ? -1 : 1);
     for (const r of rows) m[r.lift] = r.value;
     if (m.press == null) m.press = P.round5(m.bench * .62);
+    return m;
+  }
+
+  /* Every top set in a finished workout gives an estimated max: weight divided by the percent for those reps at that RPE */
+  function topEstimates(lift) {
+    const out = [];
+    const logs = live('s:').filter(l => l.status === 'done' && l.ex && l.ex[lift]).sort((a, b) => a.date < b.date ? -1 : 1);
+    for (const l of logs) {
+      for (const x of l.ex[lift].sets || []) {
+        if (x && x.done && x.top && x.w && x.r && x.r <= 10 && x.rpe >= 7) {
+          out.push({ d: l.date, w: x.w, r: x.r, rpe: x.rpe, v: Math.round(x.w / (P.rpePct(x.r, x.rpe) / 100)) });
+        }
+      }
+    }
+    return out;
+  }
+
+  /* Working max: average of the last 3 estimates since the last saved max.
+     Never below the saved max, and capped 7.5% above it until the next max-out. */
+  let maxCache = null;
+  function maxes() {
+    if (maxCache) return maxCache;
+    const m = testedMaxes();
+    const saved = live('m:');
+    for (const lift of RPE_LIFTS) {
+      const since = saved.filter(r => r.lift === lift).reduce((a, r) => (r.date > a ? r.date : a), '');
+      const est = topEstimates(lift).filter(e => e.d >= since).slice(-3);
+      if (!est.length) continue;
+      const avg = est.reduce((a, e) => a + e.v, 0) / est.length;
+      m[lift] = Math.max(m[lift], P.round5(Math.min(avg, m[lift] * 1.075)));
+    }
+    maxCache = m;
     return m;
   }
   const maxIsEst = (lift) => !!(profile().est || {})[lift] && !live('m:').some(r => r.lift === lift);
@@ -110,14 +146,29 @@
         const cur = S.rows[row.id];
         if (!cur || cur.updated_at !== row.updated_at) { S.rows[row.id] = row; changed = true; }
       }
+      if (changed) maxCache = null;
       S.since = r.now; S.lastSync = Date.now(); S.offline = false;
       LS.set('since', S.since); LS.set('lastSync', S.lastSync); LS.set('rows', S.rows); LS.set('outbox', S.outbox);
       if (changed) softRender();
+      checkVersion();
     } catch (e) {
       S.offline = true;
     }
     S.syncing = false;
     paintSync();
+  }
+
+  /* Reloads once when a newer release is live, so nobody has to refresh by hand */
+  async function checkVersion() {
+    try {
+      const r = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+      const { v } = await r.json();
+      if (!v || v === VERSION || LS.get('reloadedFor', '') === v) return;
+      const a = document.activeElement;
+      if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
+      LS.set('reloadedFor', v);
+      location.reload();
+    } catch (e) { /* offline, try again next sync */ }
   }
 
   function paintSync() {
@@ -242,19 +293,34 @@
 
   /* session */
   function presc(it) {
-    const [g1, g2] = it.groups;
-    if (it.groups.length === 2 && g2.amrap && g1.pct === g2.pct && g1.reps === g2.reps) {
-      const l = P.round5(maxes()[it.base] * g1.pct / 100);
-      return `${g1.sets + g2.sets} \u00D7 ${g1.reps} @ ${l} lb, last set max reps`;
-    }
-    const parts = it.groups.map(g => {
-      const load = it.base && g.pct != null ? P.round5(maxes()[it.base] * g.pct / 100) : null;
+    return it.groups.map(g => {
       const unit = g.unit ? (g.unit[0] === '/' ? g.unit : ' ' + g.unit) : '';
-      const body = g.sets === 1 && it.mode === 'tick' && unit ? `${g.reps}${unit}` : `${g.sets} × ${g.reps}${g.amrap ? '+' : ''}${unit}`;
-      return load ? `${body} @ ${load} lb` : body;
-    });
-    return parts.join(', then ');
+      const body = g.sets === 1 && it.mode === 'tick' && unit ? `${g.reps}${unit}` : `${g.sets} × ${g.reps}${unit}`;
+      if (g.kind === 'top') return `${body} @ RPE ${g.rpe}`;
+      if (g.kind === 'back') return `${body} back-offs`;
+      return g.load ? `${body} @ ${g.load} lb` : body;
+    }).join(', then ');
   }
+
+  /* Back-off weight comes from what was actually lifted on the top set */
+  function topFor(it, i) {
+    for (let t = i - 1; t >= 0; t--) if (it.sets[t].kind === 'top') return t;
+    return -1;
+  }
+  function ranOver(it, i, lg) {
+    const t = topFor(it, i);
+    const l = lg.sets[t];
+    return !!(l && l.rpe && l.rpe >= it.sets[t].rpe + 1);
+  }
+  function backLoad(it, i, lg) {
+    const t = topFor(it, i);
+    const top = (lg.sets[t] && lg.sets[t].w) || it.sets[t].load;
+    return P.round5(top * (1 - it.sets[i].drop / 100) * (ranOver(it, i, lg) ? .95 : 1));
+  }
+  const backTag = (it, i, lg) => (ranOver(it, i, lg)
+    ? 'Back-offs. The top set ran over target, so these dropped 5% more.'
+    : `Back-offs, ${it.sets[i].drop}% lighter than the top set.`);
+  const rpePick = (cur) => `<div class="rpepick" role="group" aria-label="RPE for this set">${RPES.map(v => `<button class="${v === cur ? 'on' : ''}" data-act="setRpe" data-v="${v}" aria-pressed="${v === cur}">${v}</button>`).join('')}</div>`;
 
   function platesFor(w) {
     let side = (w - 45) / 2;
@@ -306,17 +372,20 @@
       const last = !it.base ? lastFor(it.key, w, d) : null;
       rows = `<div class="setrows">${it.sets.map((s, i) => {
         const l = lg.sets[i] || {};
-        const wv = l.w != null ? l.w : (s.load != null ? s.load : (last ? last.w : ''));
+        const wv = l.w != null ? l.w : s.kind === 'back' ? backLoad(it, i, lg) : (s.load != null ? s.load : (last ? last.w : ''));
         const rv = l.r != null ? l.r : s.reps;
-        const tag = s.amrap ? `<span class="tag">Last set: max reps, stop 1 short of failure</span>` : (it.test ? `<span class="tag">${s.pct}%${s.pct > 100 ? ', only if the last single moved fast' : ''}</span>` : '');
-        return `<div class="setrow ${l.done ? 'done' : ''}" data-k="${it.key}" data-i="${i}">
+        let tag = '';
+        if (s.kind === 'top') tag = `<span class="tag">Top set. Target RPE ${s.rpe}, about ${s.load} lb. Adjust to how the bar feels.</span>${rpePick(l.rpe)}`;
+        else if (s.kind === 'back' && it.sets[i - 1].kind !== 'back') tag = `<span class="tag" data-backtag="${it.key}">${esc(backTag(it, i, lg))}</span>`;
+        else if (it.test) tag = `<span class="tag">${s.pct}%${s.pct > 100 ? ', only if the last single moved fast' : ''}</span>`;
+        return `<div class="setrow ${l.done ? 'done' : ''}" data-k="${it.key}" data-i="${i}" data-target="${s.kind === 'top' ? s.rpe : ''}">
           <span class="n">${i + 1}</span>
           <input id="w-${it.key}-${i}" inputmode="decimal" aria-label="Set ${i + 1} weight" placeholder="lb" value="${esc(wv)}" data-ch="set">
           <span class="x">×</span>
           <input id="r-${it.key}-${i}" inputmode="numeric" aria-label="Set ${i + 1} reps" value="${esc(rv)}" data-ch="set">
           <button class="tick" data-act="tick" data-rest="${it.rest}" aria-label="Mark set ${i + 1} done" aria-pressed="${!!l.done}">${ICON.check}</button>
           ${tag}</div>`;
-      }).join('')}</div>${last ? `<p class="lastlog">Last time: ${last.w} lb × ${last.r}</p>` : ''}`;
+      }).join('')}</div>${last ? `<p class="lastlog">Last time: ${last.w} lb × ${last.r}</p>` : ''}${it.sets.some(x => x.kind === 'top') ? '<p class="lastlog">RPE 8 = 2 reps left. 9 = 1 left. 10 = nothing left.</p>' : ''}`;
     }
     const heading = it.main && !it.test
       ? `<div class="ex-top"><div><h3>${esc(it.n)}</h3><p class="presc">${esc(presc(it))}</p></div><div class="big">${topW}<small>lb</small></div></div>`
@@ -371,8 +440,9 @@
           <div class="stat"><span class="v">${short(log.date)}</span><span class="l">Logged</span></div>
         </div>
         ${log.note ? `<p>${esc(log.note)}</p>` : ''}
-        ${offers.map(o => `<div class="notice"><b>New ${esc(P.LIFTS[o.lift])} max</b>${o.est ? `That max-rep set points to about ${o.value} lb` : `${o.value} lb`}, up from ${o.from}. Save it to raise every weight in the plan.
-          <div class="row" style="margin-top:8px"><button class="btn slim" data-act="acceptMax" data-lift="${o.lift}" data-v="${o.value}" data-date="${log.date}" data-est="${o.est ? '1' : ''}">Save ${o.value}</button></div></div>`).join('')}
+        ${s.items.filter(i => RPE_LIFTS.includes(i.key) && i.sets.some(x => x.kind === 'top')).map(i => `<p class="small muted">Estimated ${esc(i.n)} max: <b>${maxes()[i.key]} lb</b></p>`).join('')}
+        ${offers.map(o => `<div class="notice"><b>New ${esc(P.LIFTS[o.lift])} max</b>${o.value} lb, up from ${o.from}. Save it to raise every weight in the plan.
+          <div class="row" style="margin-top:8px"><button class="btn slim" data-act="acceptMax" data-lift="${o.lift}" data-v="${o.value}" data-date="${log.date}">Save ${o.value}</button></div></div>`).join('')}
         <button class="btn ghost block" data-act="reopen" data-w="${w}" data-d="${d}">Edit this workout</button></div>`;
     }
     const rpe = (log && log.rpe) || 0;
@@ -402,6 +472,20 @@
     log.ex[k].sets[i] = { ...(log.ex[k].sets[i] || {}), ...fields };
     put(sessKey(w, d), 'session', log);
     return log;
+  }
+  function refreshBackoffs(k, log) {
+    const { w, d } = ctx();
+    const it = P.session(w, d, maxes()).items.find(x => x.key === k);
+    const lg = log.ex[k] || { sets: [] };
+    if (!it) return;
+    it.sets.forEach((s, i) => {
+      if (s.kind !== 'back') return;
+      const row = document.querySelector(`.setrow[data-k="${k}"][data-i="${i}"]`);
+      const l = lg.sets[i];
+      if (row && !(l && l.w != null)) row.querySelector('input').value = backLoad(it, i, lg);
+      const tag = row && row.querySelector('[data-backtag]');
+      if (tag) tag.textContent = backTag(it, i, lg);
+    });
   }
   function refreshExDone(k, log) {
     const { w, d } = ctx();
@@ -462,7 +546,7 @@
     }).join('');
     return `${topBar()}${fieldBlock(w)}
       <div class="section"><h2>The 38-Week Plan</h2>
-      <p class="muted">Four lifts a week, a speed day with an arm pump, and a Saturday yoke and sled day. Six max-out weeks keep the weights climbing.</p>
+      <p class="muted">Compounds run on RPE: a top set, back-offs from what you actually lifted, then a variation. Six max-out weeks keep the numbers climbing.</p>
       ${phases}</div>`;
   }
 
@@ -504,18 +588,8 @@
   function liftPoints(lift) {
     const pr = profile();
     const pts = [{ d: P.KICKOFF, y: pr.start[lift], est: !!(pr.est || {})[lift], label: 'Starting max' }];
-    for (const m of live('m:')) if (m.lift === lift) pts.push({ d: m.date, y: m.value, est: m.source === 'estimate', label: m.source === 'test' ? 'Tested max' : 'Updated max' });
-    for (const s of live('s:')) {
-      const e = s.ex && s.ex[lift];
-      if (!e) continue;
-      const sess = P.session(s.w, s.d, maxes());
-      const it = sess.items.find(i => i.key === lift);
-      if (!it) continue;
-      (e.sets || []).forEach((x, i) => {
-        const st = it.sets[i];
-        if (x && x.done && st && st.amrap && x.w && x.r) pts.push({ d: s.date, y: Math.round(x.w * (1 + x.r / 30)), est: true, label: `Estimated from ${x.w} × ${x.r}` });
-      });
-    }
+    for (const m of live('m:')) if (m.lift === lift) pts.push({ d: m.date, y: m.value, label: m.source === 'test' ? 'Tested max' : 'Updated max' });
+    for (const e of topEstimates(lift)) pts.push({ d: e.d, y: e.v, est: true, label: `Estimated from ${e.w} × ${e.r} @ RPE ${e.rpe}` });
     return pts;
   }
 
@@ -532,6 +606,7 @@
     const w = currentWeek();
     const pr = profile();
     const mx = maxes();
+    const tested = testedMaxes();
     const big = ['squat', 'bench', 'deadlift'];
     const tot = big.reduce((a, l) => a + (mx[l] || 0), 0);
     const totStart = big.reduce((a, l) => a + (pr.start[l] || 0), 0);
@@ -545,7 +620,7 @@
 
     const lifts = Object.keys(P.LIFTS).map(l => {
       const pct = pr.goals[l] > pr.start[l] ? Math.max(0, Math.min(100, ((mx[l] - pr.start[l]) / (pr.goals[l] - pr.start[l])) * 100)) : 0;
-      return `<div class="lift"><div class="row"><span>${esc(P.LIFTS[l])}${maxIsEst(l) ? ' <span class="muted small">(estimate)</span>' : ''}</span><span class="cur">${mx[l]}</span></div>
+      return `<div class="lift"><div class="row"><span>${esc(P.LIFTS[l])}${maxIsEst(l) || mx[l] > tested[l] ? ' <span class="muted small">(estimate)</span>' : ''}</span><span class="cur">${mx[l]}</span></div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         <div class="row small muted"><span>Started ${pr.start[l]}</span><span>Goal ${pr.goals[l]}</span></div></div>`;
     }).join('');
@@ -608,7 +683,7 @@
       <p class="small muted">Total is squat + bench + deadlift. Started at ${fmt(totStart)}. Goals are targets, not promises.</p>
       <div class="card"><div class="seg" role="group" aria-label="Pick a lift">${seg}</div>
         ${strength}
-        <p class="small muted">Solid dots are tested maxes. Hollow dots are estimates from max-rep sets.</p></div></div>
+        <p class="small muted">Solid dots are tested maxes. Hollow dots are estimates from top sets.</p></div></div>
 
       <div class="section"><div class="row"><h2>Bodyweight</h2><span class="muted small">${bw ? bw + ' lb now' : ''}</span></div>
       <div class="card">${bwChart}<p class="small muted">The dashed line is a steady pace to the camp goal, about 0.7 lb a week.</p></div></div>
@@ -710,13 +785,13 @@
 
   /* settings */
   function renderSheet() {
-    const mx = maxes(), pr = profile();
+    const mx = testedMaxes(), pr = profile();
     const lifts = Object.keys(P.LIFTS);
     return `<div class="sheet"><div class="sheet-in">
       <button class="back" data-act="closeSheet">&larr; Back</button>
       <h1>Settings</h1>
-      <div class="card"><h3>Current Maxes</h3>
-        <p class="small muted">Every weight in the plan comes from these. Change them only after a real test.</p>
+      <div class="card"><h3>Saved Maxes</h3>
+        <p class="small muted">The plan starts from these, then top sets raise the estimate on top of them. Change them only after a real test.</p>
         <div class="two">${lifts.map(l => `<label class="lbl" for="mx-${l}">${esc(P.LIFTS[l])}<input id="mx-${l}" class="field-in" inputmode="numeric" value="${mx[l]}"></label>`).join('')}</div>
         ${maxIsEst('clean') ? '<p class="small muted">The clean is an estimate based on the squat. Update it after the first real test.</p>' : ''}
         <button class="btn slim block" data-act="saveMaxes">Save maxes</button></div>
@@ -781,6 +856,7 @@
   function signOut(msg) {
     for (const k of ['code', 'role', 'rows', 'outbox', 'since', 'lastSync']) LS.del(k);
     S.code = null; S.role = null; S.rows = {}; S.outbox = {}; S.since = null; S.sheet = false; S.syncing = false;
+    maxCache = null;
     document.title = 'Senior Year Build';
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     renderLock(msg);
@@ -801,6 +877,7 @@
       for (const k of ['rows', 'outbox', 'since']) LS.del(k);
       S.rows = {}; S.outbox = {};
       for (const row of r.rows) S.rows[row.id] = row;
+      maxCache = null;
       S.code = code; S.role = r.role; S.since = r.now; S.lastSync = Date.now();
       LS.set('code', code); LS.set('role', r.role); LS.set('rows', S.rows); LS.set('since', S.since); LS.set('lastSync', S.lastSync);
       begin();
@@ -831,11 +908,27 @@
       const k = row.dataset.k, i = +row.dataset.i;
       const inputs = row.querySelectorAll('input');
       const was = row.classList.contains('done');
-      const log = writeSet(k, i, { w: num(inputs[0].value), r: num(inputs[1].value), done: !was });
+      const fields = { w: num(inputs[0].value), r: num(inputs[1].value), done: !was };
+      const target = num(row.dataset.target);
+      if (target) {
+        const on = row.querySelector('.rpepick .on');
+        fields.top = 1;
+        fields.rpe = on ? +on.dataset.v : target;
+        if (!on) row.querySelectorAll('.rpepick button').forEach(b => b.classList.toggle('on', +b.dataset.v === target));
+      }
+      const log = writeSet(k, i, fields);
       row.classList.toggle('done', !was);
       t.setAttribute('aria-pressed', String(!was));
       refreshExDone(k, log);
+      if (target) refreshBackoffs(k, log);
       if (!was) { startRest(+t.dataset.rest); keepAwake(); }
+    },
+    setRpe(t) {
+      const row = t.closest('.setrow');
+      const inputs = row.querySelectorAll('input');
+      const log = writeSet(row.dataset.k, +row.dataset.i, { w: num(inputs[0].value), r: num(inputs[1].value), rpe: +t.dataset.v, top: 1 });
+      row.querySelectorAll('.rpepick button').forEach(b => { b.classList.toggle('on', b === t); b.setAttribute('aria-pressed', String(b === t)); });
+      refreshBackoffs(row.dataset.k, log);
     },
     pill(t) {
       const k = t.dataset.k, i = +t.dataset.i;
@@ -864,23 +957,11 @@
       put(sessKey(w, d), 'session', log);
       stopRest();
       const s = P.session(w, d, maxes());
-      const mx = maxes();
+      const tested = testedMaxes();
       S.offers = S.offers.filter(o => !(o.w === w && o.d === d));
-      for (const it of s.items.filter(x => P.LIFTS[x.key])) {
-        const sets = (log.ex[it.key] || {}).sets || [];
-        if (it.test) {
-          const best = sets.filter(x => x && x.done && x.w && x.r >= 1).reduce((m, x) => Math.max(m, x.w), 0);
-          if (best > mx[it.key]) S.offers.push({ w, d, lift: it.key, value: best, from: mx[it.key] });
-          continue;
-        }
-        /* A max-rep set can show the listed max is out of date before the next test */
-        let est = 0;
-        sets.forEach((x, i) => {
-          const st = it.sets[i];
-          if (x && x.done && st && st.amrap && x.w && x.r) est = Math.max(est, x.w * (1 + Math.min(x.r, 10) / 30));
-        });
-        const value = Math.floor(est / 5) * 5;
-        if (value > mx[it.key]) S.offers.push({ w, d, lift: it.key, value, from: mx[it.key], est: true });
+      for (const it of s.items.filter(x => x.test)) {
+        const best = ((log.ex[it.key] || {}).sets || []).filter(x => x && x.done && x.w && x.r >= 1).reduce((m, x) => Math.max(m, x.w), 0);
+        if (best > tested[it.key]) S.offers.push({ w, d, lift: it.key, value: best, from: tested[it.key] });
       }
       toast('Workout saved');
       render(true);
@@ -894,7 +975,7 @@
     },
     acceptMax(t) {
       const lift = t.dataset.lift, value = +t.dataset.v, date = t.dataset.date;
-      put(`m:${date}:${lift}`, 'max', { date, lift, value, source: t.dataset.est ? 'estimate' : 'test' });
+      put(`m:${date}:${lift}`, 'max', { date, lift, value, source: 'test' });
       S.offers = S.offers.filter(o => o.lift !== lift);
       toast(`${P.LIFTS[lift]} max is now ${value}`);
       render(true);
@@ -951,7 +1032,7 @@
       render(true);
     },
     saveMaxes() {
-      const mx = maxes();
+      const mx = testedMaxes();
       const date = today();
       let n = 0;
       for (const l of Object.keys(P.LIFTS)) {
@@ -995,7 +1076,8 @@
     if (t.dataset.ch === 'set') {
       const row = t.closest('.setrow');
       const inputs = row.querySelectorAll('input');
-      writeSet(row.dataset.k, +row.dataset.i, { w: num(inputs[0].value), r: num(inputs[1].value) });
+      const log = writeSet(row.dataset.k, +row.dataset.i, { w: num(inputs[0].value), r: num(inputs[1].value) });
+      if (row.dataset.target) refreshBackoffs(row.dataset.k, log);
     }
     if (t.dataset.ch === 'metric') {
       const v = num(t.value);
