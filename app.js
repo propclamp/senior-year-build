@@ -3,7 +3,7 @@
   const P = window.PROGRAM;
   const CFG = window.SYB_CONFIG;
   const END = '2027-08-01';
-  const VERSION = '2026-11-04-rpe'; /* Change this and version.json together on every release */
+  const VERSION = '2026-11-04-acc'; /* Change this and version.json together on every release */
   const RPE_LIFTS = ['squat', 'bench', 'deadlift', 'press'];
   const RPES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
   const $ = (s, el = document) => el.querySelector(s);
@@ -435,7 +435,7 @@
       const offers = S.offers.filter(o => o.w === w && o.d === d);
       return `<div class="card"><h3>Finished</h3>
         <div class="stats">
-          <div class="stat"><span class="v">${log.rpe || '-'}</span><span class="l">Effort (RPE)</span></div>
+          <div class="stat"><span class="v">${log.rpe || '-'}</span><span class="l">Effort</span></div>
           <div class="stat"><span class="v">${fmt(tonnage(log))}</span><span class="l">Pounds moved</span></div>
           <div class="stat"><span class="v">${short(log.date)}</span><span class="l">Logged</span></div>
         </div>
@@ -449,7 +449,7 @@
     return `<div class="card">
       <h3>How hard was it?</h3>
       <div class="rpes" role="group" aria-label="Effort from 5 to 10">${[5, 6, 7, 8, 9, 10].map(n => `<button class="rpe ${n === rpe ? 'on' : ''}" data-act="rpe" data-v="${n}" data-w="${w}" data-d="${d}">${n}</button>`).join('')}</div>
-      <p class="small muted">5 is easy. 8 means 2 reps left. 10 means nothing left.</p>
+      <p class="small muted">5 is easy. 10 is everything you had.</p>
       <label class="lbl" for="note-${w}-${d}">Notes for Coach (optional)</label>
       <textarea id="note-${w}-${d}" placeholder="Anything hurt? Anything feel great?">${esc((log && log.note) || '')}</textarea>
       <button class="btn block" data-act="finish" data-w="${w}" data-d="${d}">Finish workout</button>
