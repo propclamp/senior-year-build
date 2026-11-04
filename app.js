@@ -3,7 +3,7 @@
   const P = window.PROGRAM;
   const CFG = window.SYB_CONFIG;
   const END = '2027-08-01';
-  const VERSION = '2026-11-04-acc'; /* Change this and version.json together on every release */
+  const VERSION = '2026-11-04-size'; /* Change this and version.json together on every release */
   const RPE_LIFTS = ['squat', 'bench', 'deadlift', 'press'];
   const RPES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
   const $ = (s, el = document) => el.querySelector(s);
@@ -546,7 +546,7 @@
     }).join('');
     return `${topBar()}${fieldBlock(w)}
       <div class="section"><h2>The 38-Week Plan</h2>
-      <p class="muted">Compounds run on RPE: a top set, back-offs from what you actually lifted, then a variation. Six max-out weeks keep the numbers climbing.</p>
+      <p class="muted">Size first, then strength, then power and speed before the season. Compounds run on RPE, and six max-out weeks keep the numbers climbing.</p>
       ${phases}</div>`;
   }
 

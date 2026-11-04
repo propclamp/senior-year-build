@@ -106,6 +106,10 @@
     deficit: { n: 'Deficit Deadlift', cue: 'Stand on a 2-inch plate. Hips low, stay over the bar, and push the floor away.' },
     pausedead: { n: 'Paused Deadlift', cue: 'Pause two seconds just below the knee, stay tight, then finish the pull.' },
     blockpull: { n: 'Block Pull', cue: 'Bar on blocks or pins just below the knee. Lock the lats and drive to lockout.' },
+    pendulum: { n: 'Pendulum Squat', cue: 'Feet high enough to keep the heels down. Control the bottom and drive through the whole foot.' },
+    legext: { n: 'Leg Extension', cue: 'Squeeze hard at the top for a second, then lower slow.' },
+    nglat: { n: 'Neutral-Grip Pulldown', cue: 'Palms facing each other. Pull to the upper chest and squeeze the lats.' },
+    dbshrug: { n: 'Dumbbell Shrug', cue: 'Straight up, hold one second at the top, and let the traps stretch at the bottom.' },
     measure: { n: 'Testing', cue: 'Full rest between attempts. Record the best one.' },
   };
 
@@ -167,18 +171,75 @@
   });
   const fullTesting = measureDay(['ten', 'forty', 'shuttle', 'vertical', 'broad', 'reps225']);
 
+  const every = (s) => [s, s, s, s, s];
+  const weekA = (s) => [s, null, s, null, s];
+  const weekB = (s) => [null, s, null, s, null];
+
+  /* Both Size phases share one layout. Weeks alternate A and B so the leg machines rotate. */
+  const sizeDays = ({ main, pull, clean, larsen, deficit, rdl, arms, speed, yoke }) => ({
+    mon: { title: 'Lower Heavy', kind: 'lift', min: 85, warm: 'lower', items: [
+      { x: 'squat', base: 'squat', rest: 180, s: main },
+      { x: 'pendulum', s: weekA('4x10'), rest: 120 },
+      { x: 'rdl', base: 'deadlift', rest: 120, s: rdl },
+      { x: 'legpress', s: weekB('4x12'), rest: 120 },
+      { x: 'legext', s: weekA('4x15'), rest: 75 },
+      { x: 'legcurl', s: '4x12', rest: 75 },
+      { x: 'abwheel', s: '3x12', e: 'Clean reps', rest: 45 },
+    ] },
+    tue: { title: 'Upper Heavy', kind: 'lift', min: 85, warm: 'upper', items: [
+      { x: 'bench', base: 'bench', rest: 180, s: main },
+      { x: 'larsen', base: 'bench', rest: 120, s: larsen },
+      { x: 'pulldown', s: '4x8', rest: 120 },
+      { x: 'seateddb', s: '4x8', rest: 90 },
+      { x: 'bbrow', s: '4x8', rest: 90 },
+      { x: 'laterals', s: '3x15', rest: 45 },
+      { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
+      { x: 'neck', s: '3x15', e: 'Light', rest: 45 },
+    ] },
+    wed: { title: 'First Step + Arm Pump', kind: 'speed', min: 50, warm: 'speed', items: [
+      ...speed,
+      { x: 'laterals', s: '3x20', rest: 30 },
+      ...armPump,
+    ] },
+    thu: { title: 'Lower Power', kind: 'lift', min: 80, warm: 'lower', items: [
+      { x: 'clean', base: 'clean', rest: 120, s: clean },
+      { x: 'trapbar', base: 'deadlift', big: true, noPlates: true, rest: 180, s: pull },
+      { x: 'deficit', base: 'deadlift', rest: 120, s: deficit },
+      { x: 'legext', s: weekA('3x15'), rest: 75 },
+      { x: 'legcurl', s: weekB('3x12'), rest: 75 },
+      { x: 'shrug', s: '4x12', rest: 60 },
+      { x: 'sledpush', s: '4x20yd', rest: 75 },
+    ] },
+    fri: { title: 'Shoulders + Arms', kind: 'lift', min: 75, warm: 'upper', items: [
+      { x: 'press', base: 'press', rest: 180, s: main },
+      { x: 'seateddb', s: '4x8', rest: 90 },
+      { x: 'laterals', s: '4x15', rest: 45 },
+      { x: 'reardelt', s: '3x15', rest: 45 },
+      ...arms,
+      { x: 'neck', s: '3x15', e: 'Light', rest: 45 },
+    ] },
+    sat: { title: 'Yoke, Back + Traps', kind: 'cond', min: 55, items: [
+      { x: 'yoke', s: yoke, rest: 90 },
+      { x: 'sledpush', s: '6x15yd', rest: 60 },
+      { x: 'farmer', s: '4x40yd', rest: 75 },
+      { x: 'nglat', s: '4x12', rest: 75 },
+      { x: 'dbrow', s: '4x10/side', rest: 60 },
+      { x: 'dbshrug', s: '4x15', rest: 60 },
+    ] },
+  });
+
   const PHASES = [
     {
       id: 'ramp', name: 'Ramp Up', from: 1, to: 2, color: 'white',
-      goal: 'Shake off the season and get moving heavy again.',
-      why: 'Real weight on the bar, but smooth and fast. Arm volume starts lower and builds over the first few weeks.',
+      goal: 'Shake off the season and ease into the leg machines.',
+      why: 'Real weight on the bar, but smooth and fast. Arm and machine volume start lower and build over the first few weeks.',
       days: {
-        mon: { title: 'Lower', kind: 'lift', min: 65, warm: 'lower', items: [
+        mon: { title: 'Lower', kind: 'lift', min: 70, warm: 'lower', items: [
           { x: 'squat', base: 'squat', rest: 180, s: ['T1x5@8,B3x5-8', 'T1x5@8.5,B3x5-8'], note: 'Stop the top set at the target RPE. Smooth and fast.' },
           { x: 'pausesquat', base: 'squat', rest: 120, s: ['3x3@65', '3x3@67.5'] },
-          { x: 'rdl', base: 'deadlift', s: ['3x10@50', '3x10@55'], rest: 90 },
-          { x: 'lunge', s: '3x10/leg', e: 'Moderate', rest: 75 },
-          { x: 'legcurl', s: '3x12', rest: 60 },
+          { x: 'legpress', s: '3x12', rest: 120 },
+          { x: 'legext', s: '3x15', rest: 75 },
+          { x: 'legcurl', s: '3x12', rest: 75 },
           { x: 'pallof', s: '3x10/side', e: 'Moderate', rest: 45 },
         ] },
         tue: { title: 'Upper', kind: 'lift', min: 65, warm: 'upper', items: [
@@ -219,92 +280,87 @@
       },
     },
     {
-      id: 'mass', name: 'Mass', from: 3, to: 8, color: 'blue', deload: [7], test: 8,
-      goal: 'Put on size. Highest volume of the year. First max-out in Week 8.',
-      why: 'New muscle carries into every other phase. Top sets of 5-6, big back-off volume, then a lighter week and a max-out over Christmas break.',
-      days: {
-        mon: { title: 'Lower Heavy', kind: 'lift', min: 80, warm: 'lower', items: [
-          { x: 'squat', base: 'squat', rest: 180, s: ['T1x6@8,B4x6-10', 'T1x6@8,B4x6-10', 'T1x6@8.5,B4x6-10', 'T1x5@8.5,B4x5-10', 'T1x5@6,B2x5-5'] },
-          { x: 'temposquat', base: 'squat', rest: 120, s: ['3x5@65', '3x5@65', '3x5@67.5', '3x5@67.5', '2x5@55'] },
-          { x: 'rdl', base: 'deadlift', rest: 120, s: ['4x8@60', '4x8@62.5', '4x8@65', '4x8@67.5', '2x8@50'] },
-          { x: 'bulgarian', s: '3x10/leg', rest: 90 },
-          { x: 'legcurl', s: '4x12', rest: 60 },
-          { x: 'abwheel', s: '3x12', e: 'Clean reps', rest: 45 },
-        ] },
-        tue: { title: 'Upper Heavy', kind: 'lift', min: 80, warm: 'upper', items: [
-          { x: 'bench', base: 'bench', rest: 180, s: ['T1x6@8,B4x6-10', 'T1x6@8,B4x6-10', 'T1x6@8.5,B4x6-10', 'T1x5@8.5,B4x5-10', 'T1x5@6,B2x5-5'] },
-          { x: 'larsen', base: 'bench', rest: 120, s: ['3x6@70', '3x6@70', '3x6@72.5', '3x6@72.5', '2x6@60'] },
-          { x: 'pulldown', s: '4x8', rest: 120 },
-          { x: 'seateddb', s: '4x8', rest: 90 },
-          { x: 'bbrow', s: '4x8', rest: 90 },
-          { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
-          { x: 'neck', s: '3x15', e: 'Light', rest: 45 },
-        ] },
-        wed: { title: 'First Step + Arm Pump', kind: 'speed', min: 45, warm: 'speed', items: [
+      id: 'size1', name: 'Size 1', from: 3, to: 8, color: 'blue', deload: [7], test: 8,
+      goal: 'Build size. Compounds stay in, but most of the work is hypertrophy.',
+      why: 'Top sets of 8, big back-off volume, and leg machines rotating every other week. Then a lighter week and a max-out over Christmas break.',
+      days: sizeDays({
+        main: ['T1x8@8,B4x8-8', 'T1x8@8,B4x8-8', 'T1x8@8.5,B4x8-8', 'T1x8@8.5,B4x8-8', 'T1x6@6,B2x6-5'],
+        pull: ['T1x6@8,B3x6-8', 'T1x6@8,B3x6-8', 'T1x6@8.5,B3x6-8', 'T1x5@8.5,B3x5-8', 'T1x5@6,B2x5-5'],
+        clean: ['5x3@65', '5x3@67.5', '5x3@70', '5x2@75', '3x2@60'],
+        larsen: ['3x8@65', '3x8@65', '3x8@67.5', '3x8@67.5', '2x8@55'],
+        deficit: ['3x5@62.5', '3x5@65', '3x5@67.5', '3x4@67.5', '2x4@55'],
+        rdl: [null, '4x8@62.5', null, '4x8@67.5', null],
+        arms: armWork(['3x10', '4x10', '4x10', '4x10', '3x10'], '3x12', ['2x15', '2x15', '3x15', '3x15', '2x15'], [false, false, true, true, false]),
+        speed: [
           { x: 'start3', s: '6x5yd', rest: 40 },
           { x: 'kickslide', s: '6x5yd', rest: 40 },
           { x: 'mbchest', s: '3x5', rest: 60 },
           { x: 'boxjump', s: '3x4', rest: 75 },
-          ...armPump,
-        ] },
-        thu: { title: 'Lower Power', kind: 'lift', min: 80, warm: 'lower', items: [
-          { x: 'clean', base: 'clean', rest: 120, s: ['5x3@65', '5x3@67.5', '5x3@70', '5x2@75', '3x2@60'] },
-          { x: 'trapbar', base: 'deadlift', big: true, noPlates: true, rest: 180, s: ['T1x5@8,B4x5-10', 'T1x5@8,B4x5-10', 'T1x4@8.5,B4x4-10', 'T1x3@8.5,B4x3-10', 'T1x3@6,B2x3-5'] },
-          { x: 'deficit', base: 'deadlift', rest: 120, s: ['3x5@62.5', '3x5@65', '3x5@67.5', '3x4@67.5', '2x4@55'] },
-          { x: 'ghr', s: '3x10', e: 'Clean reps', rest: 75 },
-          { x: 'shrug', s: '4x12', rest: 60 },
-          { x: 'sledpush', s: '4x20yd', rest: 75 },
-        ] },
-        fri: { title: 'Shoulders + Arms', kind: 'lift', min: 75, warm: 'upper', items: [
-          { x: 'press', base: 'press', rest: 180, s: ['T1x6@8,B4x6-10', 'T1x6@8,B4x6-10', 'T1x6@8.5,B4x6-10', 'T1x5@8.5,B4x5-10', 'T1x5@6,B2x5-5'] },
-          { x: 'seateddb', s: '4x8', rest: 90 },
-          { x: 'laterals', s: '4x15', rest: 45 },
-          { x: 'reardelt', s: '3x15', rest: 45 },
-          ...armWork(['3x10', '4x10', '4x10', '4x10', '3x10'], '3x12', ['2x15', '2x15', '3x15', '3x15', '2x15'], [false, false, true, true, false]),
-          { x: 'neck', s: '3x15', e: 'Light', rest: 45 },
-        ] },
-        sat: { title: 'Yoke + Sled', kind: 'cond', min: 35, items: [
-          { x: 'yoke', s: '5x30yd', rest: 90 },
-          { x: 'sledpush', s: '6x15yd', rest: 60 },
-          { x: 'farmer', s: '4x40yd', rest: 75 },
-        ] },
-      },
+        ],
+        yoke: '5x30yd',
+      }),
       override: { 8: testWeek(easyDay) },
     },
     {
-      id: 'strength', name: 'Strength', from: 9, to: 14, color: 'yellow', deload: [13], test: 14,
-      goal: 'Turn the new muscle into strength. Max out in Week 14.',
-      why: 'Reps come down and top sets climb to RPE 9, with pin squats, Spoto presses and paused deadlifts for weak points.',
+      id: 'size2', name: 'Size 2', from: 9, to: 14, color: 'green', deload: [13], test: 14,
+      goal: 'Keep building size while the weight on the bar climbs. Max out in Week 14.',
+      why: 'Top sets drop to 6 reps so the load goes up, and the leg machines keep rotating.',
+      days: sizeDays({
+        main: ['T1x6@8,B4x6-8', 'T1x6@8,B4x6-8', 'T1x6@8.5,B4x6-8', 'T1x5@8.5,B4x5-8', 'T1x5@6,B2x5-5'],
+        pull: ['T1x5@8,B3x5-8', 'T1x5@8,B3x5-8', 'T1x5@8.5,B3x5-8', 'T1x4@8.5,B3x4-8', 'T1x4@6,B2x4-5'],
+        clean: ['5x3@67.5', '5x3@70', '5x2@75', '5x2@77.5', '3x2@60'],
+        larsen: ['3x6@70', '3x6@70', '3x6@72.5', '3x6@72.5', '2x6@60'],
+        deficit: ['3x5@65', '3x5@67.5', '3x4@70', '3x4@70', '2x4@55'],
+        rdl: [null, '4x8@65', null, '4x8@70', null],
+        arms: armWork('4x10', '3x12', '3x15', [true, true, true, true, false]),
+        speed: [
+          { x: 'start3', s: '8x5yd', rest: 40 },
+          { x: 'kickslide', s: '6x5yd', rest: 40 },
+          { x: 'sledsprint', s: '6x10yd', rest: 60 },
+          { x: 'mbscoop', s: '3x5', rest: 60 },
+        ],
+        yoke: '6x30yd',
+      }),
+      override: { 14: testWeek(fullTesting) },
+    },
+    {
+      id: 'strength', name: 'Strength', from: 15, to: 20, color: 'yellow', deload: [19], test: 20,
+      goal: 'Turn the new size into strength. Max out in Week 20.',
+      why: 'Reps come down and top sets climb to RPE 9, with pin squats, Spoto presses and paused deadlifts for weak points. Leg machines drop to three a week.',
       days: {
-        mon: { title: 'Lower Heavy', kind: 'lift', min: 75, warm: 'lower', items: [
+        mon: { title: 'Lower Heavy', kind: 'lift', min: 80, warm: 'lower', items: [
           { x: 'squat', base: 'squat', rest: 210, s: ['T1x3@8,B4x4-10', 'T1x3@8.5,B4x4-10', 'T1x3@9,B4x4-10', 'T1x2@9,B4x3-10', 'T1x3@6,B2x3-5'] },
           { x: 'pinsquat', base: 'squat', rest: 150, s: ['3x3@72.5', '3x3@75', '3x3@75', '3x3@75', '2x3@60'] },
           { x: 'rdl', base: 'deadlift', rest: 120, s: ['3x6@67.5', '3x6@70', '3x6@72.5', '3x5@72.5', '2x6@55'] },
-          { x: 'bulgarian', s: '3x8/leg', rest: 90 },
+          { x: 'pendulum', s: weekA('3x8'), rest: 120 },
+          { x: 'legpress', s: weekB('3x10'), rest: 120 },
           { x: 'legcurl', s: '3x10', rest: 60 },
           { x: 'abwheel', s: '3x12', e: 'Clean reps', rest: 45 },
         ] },
-        tue: { title: 'Upper Heavy', kind: 'lift', min: 75, warm: 'upper', items: [
+        tue: { title: 'Upper Heavy', kind: 'lift', min: 80, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 210, s: ['T1x3@8,B4x4-10', 'T1x3@8.5,B4x4-10', 'T1x3@9,B4x4-10', 'T1x2@9,B4x3-10', 'T1x3@6,B2x3-5'] },
           { x: 'spoto', base: 'bench', rest: 120, s: ['3x4@72.5', '3x4@75', '3x3@77.5', '3x3@77.5', '2x4@60'] },
           { x: 'pulldown', s: '4x6', rest: 120 },
           { x: 'seateddb', s: '4x8', rest: 90 },
           { x: 'bbrow', s: '4x6', rest: 90 },
+          { x: 'laterals', s: '3x15', rest: 45 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
           { x: 'neck', s: '3x15', e: 'Light', rest: 45 },
         ] },
-        wed: { title: 'First Step + Arm Pump', kind: 'speed', min: 45, warm: 'speed', items: [
+        wed: { title: 'First Step + Arm Pump', kind: 'speed', min: 50, warm: 'speed', items: [
           { x: 'start3', s: '8x5yd', rest: 40 },
           { x: 'kickslide', s: '6x5yd', rest: 40 },
           { x: 'sledsprint', s: '6x10yd', rest: 60 },
           { x: 'mbscoop', s: '3x5', rest: 60 },
+          { x: 'laterals', s: '3x20', rest: 30 },
           ...armPump,
         ] },
-        thu: { title: 'Lower Power', kind: 'lift', min: 75, warm: 'lower', items: [
+        thu: { title: 'Lower Power', kind: 'lift', min: 80, warm: 'lower', items: [
           { x: 'clean', base: 'clean', rest: 150, s: ['5x2@77.5', '5x2@80', '4x2@82.5', '4x2@85', '3x2@65'] },
           { x: 'deadlift', base: 'deadlift', rest: 210, s: ['T1x3@8,B3x3-10', 'T1x3@8.5,B3x3-10', 'T1x3@9,B3x3-10', 'T1x2@9,B3x2-10', 'T1x3@6,B2x3-5'] },
           { x: 'pausedead', base: 'deadlift', rest: 150, s: ['3x3@70', '3x3@72.5', '3x3@75', '3x2@75', '2x3@60'] },
           { x: 'ghr', s: '3x10', e: 'Clean reps', rest: 75 },
+          { x: 'legext', s: '3x12', rest: 75 },
           { x: 'shrug', s: '4x10', rest: 60 },
           { x: 'sledpush', s: '4x20yd', rest: 75 },
         ] },
@@ -316,41 +372,46 @@
           ...armWork('4x10', '3x12', '3x15', [true, true, true, true, false]),
           { x: 'neck', s: '3x15', e: 'Light', rest: 45 },
         ] },
-        sat: { title: 'Yoke + Sled', kind: 'cond', min: 35, items: [
+        sat: { title: 'Yoke, Back + Traps', kind: 'cond', min: 50, items: [
           { x: 'yoke', s: '6x30yd', rest: 90 },
           { x: 'sledpush', s: '6x15yd', rest: 60 },
           { x: 'farmer', s: '4x40yd', rest: 75 },
-          { x: 'pinch', s: '3x30sec', rest: 45 },
+          { x: 'nglat', s: '3x12', rest: 75 },
+          { x: 'dbrow', s: '3x10/side', rest: 60 },
+          { x: 'dbshrug', s: '3x15', rest: 60 },
         ] },
       },
-      override: { 14: testWeek(fullTesting) },
+      override: { 20: testWeek(easyDay) },
     },
     {
-      id: 'max', name: 'Max Strength', from: 15, to: 20, color: 'red', deload: [19], test: 20,
-      goal: 'The heaviest block of the year. Max out in Week 20.',
-      why: 'Heavy singles at RPE 8-9, then triples and back-offs. Accessory volume drops to recover from the heavy work.',
+      id: 'max', name: 'Max Strength', from: 21, to: 26, color: 'red', deload: [25], test: 26,
+      goal: 'The heaviest block of the year. Max out in Week 26.',
+      why: 'Heavy singles at RPE 8-9, then triples and back-offs, so he peaks around early May when college coaches are often at schools. Accessory volume drops to recover from the heavy work.',
       days: {
         mon: { title: 'Lower Max', kind: 'lift', min: 75, warm: 'lower', items: [
           { x: 'squat', base: 'squat', rest: 240, s: ['T1x1@8,T1x3@8,B3x3-10', 'T1x1@8.5,T1x3@8,B3x3-10', 'T1x1@9,T1x3@8,B3x3-10', 'T1x1@9,T1x2@8.5,B3x2-10', 'T1x3@6,B2x3-5'] },
-          { x: 'pausesquat', base: 'squat', rest: 150, s: ['3x3@72.5', '3x3@75', '3x3@75', '3x2@75', '2x3@55'] },
+          { x: 'pausesquat', base: 'squat', rest: 150, s: ['3x3@72.5', '3x3@75', '3x3@75', '2x3@75', '2x3@55'] },
           { x: 'rdl', base: 'deadlift', rest: 120, s: ['3x6@67.5', '3x5@70', '3x5@72.5', '3x5@72.5', '2x6@55'] },
-          { x: 'legcurl', s: '3x8', rest: 60 },
+          { x: 'pendulum', s: weekA('3x8'), rest: 120 },
+          { x: 'legpress', s: weekB('3x8'), rest: 120 },
           { x: 'plank', s: '3x45sec', rest: 45 },
         ] },
-        tue: { title: 'Upper Max', kind: 'lift', min: 75, warm: 'upper', items: [
+        tue: { title: 'Upper Max', kind: 'lift', min: 80, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 240, s: ['T1x1@8,T1x3@8,B3x3-10', 'T1x1@8.5,T1x3@8,B3x3-10', 'T1x1@9,T1x3@8,B3x3-10', 'T1x1@9,T1x2@8.5,B3x2-10', 'T1x3@6,B2x3-5'] },
           { x: 'pinpress', base: 'bench', rest: 150, s: ['3x3@80', '3x3@82.5', '3x3@82.5', '2x3@82.5', '2x3@65'] },
           { x: 'pulldown', s: '5x5', rest: 120 },
           { x: 'seateddb', s: '4x6', rest: 90 },
           { x: 'csrow', s: '4x6', rest: 90 },
+          { x: 'laterals', s: '3x15', rest: 45 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
         ] },
-        wed: { title: 'Speed + Arm Pump', kind: 'speed', min: 45, warm: 'speed', items: [
+        wed: { title: 'Speed + Arm Pump', kind: 'speed', min: 50, warm: 'speed', items: [
           { x: 'start3', s: '10x5yd', rest: 40 },
           { x: 'kickslide', s: '6x5yd', rest: 40 },
           { x: 'sledsprint', s: '6x10yd', rest: 60 },
           { x: 'broadjump', s: '3x3', rest: 75 },
+          { x: 'laterals', s: '3x20', rest: 30 },
           ...armPump,
         ] },
         thu: { title: 'Pull Max', kind: 'lift', min: 75, warm: 'lower', items: [
@@ -358,6 +419,7 @@
           { x: 'deadlift', base: 'deadlift', rest: 240, s: ['T1x1@8,T1x3@8,B2x3-10', 'T1x1@8.5,T1x3@8,B2x3-10', 'T1x1@9,T1x3@8,B2x3-10', 'T1x1@9,T1x2@8.5,B2x2-10', 'T1x2@6,B2x2-5'] },
           { x: 'blockpull', base: 'deadlift', rest: 180, s: ['3x3@85', '3x3@87.5', '3x2@90', '2x2@90', '2x3@70'] },
           { x: 'ghr', s: '3x8', e: 'Clean reps', rest: 75 },
+          { x: 'legcurl', s: '3x10', rest: 75 },
           { x: 'shrug', s: '4x8', e: 'Heavy', rest: 75 },
           { x: 'sledpush', s: '4x20yd', rest: 75 },
         ] },
@@ -369,81 +431,35 @@
           ...armWork('4x10', '3x12', '3x15', [true, true, true, true, false]),
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
         ] },
-        sat: { title: 'Iron Saturday', kind: 'cond', min: 40, items: [
+        sat: { title: 'Iron Saturday', kind: 'cond', min: 50, items: [
           { x: 'yoke', s: '6x40yd', rest: 90 },
           { x: 'sledpush', s: '8x15yd', rest: 60 },
           { x: 'farmer', s: '5x40yd', rest: 75 },
-          { x: 'pinch', s: '3x30sec', rest: 45 },
-        ] },
-      },
-      override: { 20: testWeek(easyDay) },
-    },
-    {
-      id: 'power', name: 'Power', from: 21, to: 26, color: 'orange', deload: [25], test: 26,
-      goal: 'Turn strength into explosion off the ball. Max out in Week 26.',
-      why: 'A heavy top set, then fast speed sets paired with jumps and throws. College coaches are often out at schools in the spring, so look the part.',
-      days: {
-        mon: { title: 'Lower Power', kind: 'lift', min: 70, warm: 'lower', items: [
-          { x: 'squat', base: 'squat', rest: 150, s: ['T1x2@8,6x2@70', 'T1x2@8,6x2@72.5', 'T1x2@8.5,6x2@72.5', 'T1x2@8.5,5x2@75', 'T1x2@6,3x2@60'], note: 'Top set, then speed sets. Move every speed rep as fast as you can.' },
-          { x: 'boxjump', s: '4x3', rest: 60, note: 'Do these between the speed sets.' },
-          { x: 'rdl', base: 'deadlift', rest: 120, s: ['3x5@67.5', '3x5@70', '3x5@72.5', '3x5@72.5', '2x5@55'] },
-          { x: 'legcurl', s: '3x8', rest: 60 },
-          { x: 'pallof', s: '3x10/side', e: 'Moderate', rest: 45 },
-        ] },
-        tue: { title: 'Upper Power', kind: 'lift', min: 75, warm: 'upper', items: [
-          { x: 'bench', base: 'bench', rest: 150, s: ['T1x2@8,6x2@70', 'T1x2@8,6x2@72.5', 'T1x2@8.5,6x2@72.5', 'T1x2@8.5,5x2@75', 'T1x2@6,3x2@60'], note: 'Top set, then speed sets. Move every speed rep as fast as you can.' },
-          { x: 'mbchest', s: '4x4', rest: 60, note: 'Do these between the speed sets.' },
-          { x: 'landmine', s: '3x6/side', e: 'Explosive', rest: 75 },
-          { x: 'pulldown', s: '4x8', rest: 90 },
-          { x: 'seateddb', s: '3x8', rest: 90 },
-          { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
-        ] },
-        wed: { title: 'First Step + Arm Pump', kind: 'speed', min: 45, warm: 'speed', items: [
-          { x: 'start3', s: '8x5yd', rest: 40 },
-          { x: 'kickslide', s: '6x5yd', rest: 40 },
-          { x: 'start10', s: '6x10yd', rest: 90 },
-          { x: 'shuttledrill', s: '4x1rep', rest: 120 },
-          ...armPump,
-        ] },
-        thu: { title: 'Pull Power', kind: 'lift', min: 70, warm: 'lower', items: [
-          { x: 'clean', base: 'clean', rest: 150, s: ['5x2@82.5', '5x2@85', '4x1@90', '4x1@90', '3x2@65'] },
-          { x: 'trapjump', base: 'deadlift', noPlates: true, rest: 90, s: ['4x3@30', '4x3@30', '4x3@30', '4x3@30', '2x3@25'] },
-          { x: 'deadlift', base: 'deadlift', rest: 120, s: ['T1x2@8,5x2@70', 'T1x2@8,5x2@72.5', 'T1x2@8.5,5x2@72.5', 'T1x2@8.5,4x2@75', 'T1x2@6,3x2@60'], note: 'Top set, then speed pulls off the floor.' },
-          { x: 'shrug', s: '3x8', rest: 60 },
-          { x: 'sledsprint', s: '6x15yd', rest: 75 },
-        ] },
-        fri: { title: 'Shoulders + Arms', kind: 'lift', min: 75, warm: 'upper', items: [
-          { x: 'press', base: 'press', rest: 180, s: ['T1x3@8,B2x3-10', 'T1x3@8,B2x3-10', 'T1x2@8.5,B2x2-10', 'T1x2@8.5,B2x2-10', 'T1x2@6,B1x2-5'] },
-          { x: 'pushpress', base: 'press', rest: 120, s: ['4x3@100', '4x3@105', '4x2@110', '4x2@110', '2x3@85'] },
-          { x: 'laterals', s: '4x15', rest: 45 },
-          { x: 'reardelt', s: '3x15', rest: 45 },
-          ...armWork('4x10', '3x12', '3x15', [true, true, true, true, false]),
-          { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
-        ] },
-        sat: { title: 'Sled + Bursts', kind: 'cond', min: 35, items: [
-          { x: 'yoke', s: '4x30yd', rest: 90 },
-          { x: 'sledsprint', s: '8x15yd', rest: 60 },
-          { x: 'drive', s: '1x8plays' },
-          { x: 'farmer', s: '3x40yd', rest: 60 },
+          { x: 'nglat', s: '3x12', rest: 75 },
+          { x: 'dbrow', s: '3x10/side', rest: 60 },
+          { x: 'dbshrug', s: '3x15', rest: 60 },
         ] },
       },
       override: { 26: testWeek(fullTesting) },
     },
     {
-      id: 'showcase', name: 'Showcase', from: 27, to: 32, color: 'green', deload: [31], test: 32,
-      goal: 'Peak for camps. Fast, fresh and strong when coaches are watching.',
-      why: 'Lifts stay heavy but short, and more energy goes to starts, shuttles and jumps. On camp weeks, skip Saturday and drop the deadlift. Move the Week 32 max-out if a camp lands on it.',
+      id: 'power', name: 'Power + Speed', from: 27, to: 32, color: 'orange', deload: [31], test: 32,
+      goal: 'Turn the size and strength into explosive power and speed.',
+      why: 'A heavy top set, then fast speed sets paired with jumps and throws. On camp weeks, skip Saturday and drop the deadlift. Move the Week 32 max-out if a camp lands on it.',
       days: {
-        mon: { title: 'Lower Short', kind: 'lift', min: 55, warm: 'lower', items: [
-          { x: 'squat', base: 'squat', rest: 210, s: ['T1x3@8,B2x3-8', 'T1x3@8,B2x3-8', 'T1x3@8.5,B2x3-8', 'T1x2@8.5,B2x2-8', 'T1x3@6,B1x3-5'] },
-          { x: 'boxjump', s: '3x3', rest: 60 },
-          { x: 'rdl', base: 'deadlift', rest: 120, s: ['3x5@65', '3x5@67.5', '3x5@67.5', '3x5@67.5', '2x5@55'] },
+        mon: { title: 'Lower Power', kind: 'lift', min: 65, warm: 'lower', items: [
+          { x: 'squat', base: 'squat', rest: 150, s: ['T1x2@8,6x2@70', 'T1x2@8,6x2@72.5', 'T1x2@8.5,6x2@72.5', 'T1x2@8.5,5x2@75', 'T1x2@6,3x2@60'], note: 'Top set, then speed sets. Move every speed rep as fast as you can.' },
+          { x: 'boxjump', s: '4x3', rest: 60, note: 'Do these between the speed sets.' },
+          { x: 'rdl', base: 'deadlift', rest: 120, s: ['3x5@67.5', '3x5@70', '3x5@72.5', '3x5@72.5', '2x5@55'] },
+          { x: 'legext', s: '2x15', rest: 60 },
+          { x: 'legcurl', s: '2x12', rest: 60 },
           { x: 'pallof', s: '3x10/side', e: 'Moderate', rest: 45 },
         ] },
-        tue: { title: 'Upper Short', kind: 'lift', min: 60, warm: 'upper', items: [
-          { x: 'bench', base: 'bench', rest: 210, s: ['T1x3@8,B2x3-8', 'T1x3@8,B2x3-8', 'T1x3@8.5,B2x3-8', 'T1x2@8.5,B2x2-8', 'T1x3@6,B1x3-5'] },
-          { x: 'mbchest', s: '3x4', rest: 60 },
-          { x: 'pulldown', s: '3x8', rest: 90 },
+        tue: { title: 'Upper Power', kind: 'lift', min: 70, warm: 'upper', items: [
+          { x: 'bench', base: 'bench', rest: 150, s: ['T1x2@8,6x2@70', 'T1x2@8,6x2@72.5', 'T1x2@8.5,6x2@72.5', 'T1x2@8.5,5x2@75', 'T1x2@6,3x2@60'], note: 'Top set, then speed sets. Move every speed rep as fast as you can.' },
+          { x: 'mbchest', s: '4x4', rest: 60, note: 'Do these between the speed sets.' },
+          { x: 'landmine', s: '3x6/side', e: 'Explosive', rest: 75 },
+          { x: 'pulldown', s: '4x8', rest: 90 },
           { x: 'seateddb', s: '3x8', rest: 90 },
           { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
@@ -453,43 +469,52 @@
           { x: 'kickslide', s: '6x5yd', rest: 40 },
           { x: 'shuttledrill', s: '4x1rep', rest: 120 },
           { x: 'broadjump', s: '3x3', rest: 90 },
+          { x: 'laterals', s: '3x20', rest: 30 },
           ...armPump,
         ] },
-        thu: { title: 'Pull Short', kind: 'lift', min: 55, warm: 'lower', items: [
-          { x: 'clean', base: 'clean', rest: 150, s: ['4x2@77.5', '4x2@80', '3x2@82.5', '3x2@85', '3x1@70'] },
-          { x: 'deadlift', base: 'deadlift', rest: 210, s: ['T1x3@8,B2x3-8', 'T1x3@8,B2x3-8', 'T1x2@8.5,B2x2-8', 'T1x2@8.5,B1x2-8', 'T1x2@6,B1x2-5'] },
+        thu: { title: 'Pull Power', kind: 'lift', min: 65, warm: 'lower', items: [
+          { x: 'clean', base: 'clean', rest: 150, s: ['5x2@82.5', '5x2@85', '4x1@90', '4x1@90', '3x2@65'] },
+          { x: 'trapjump', base: 'deadlift', noPlates: true, rest: 90, s: ['4x3@30', '4x3@30', '4x3@30', '4x3@30', '2x3@25'] },
+          { x: 'deadlift', base: 'deadlift', rest: 120, s: ['T1x2@8,5x2@70', 'T1x2@8,5x2@72.5', 'T1x2@8.5,5x2@72.5', 'T1x2@8.5,4x2@75', 'T1x2@6,3x2@60'], note: 'Top set, then speed pulls off the floor.' },
+          { x: 'shrug', s: '4x8', rest: 60 },
           { x: 'sledsprint', s: '6x15yd', rest: 75 },
         ] },
-        fri: { title: 'Shoulders + Arms', kind: 'lift', min: 65, warm: 'upper', items: [
-          { x: 'press', base: 'press', rest: 180, s: ['T1x3@8,B2x3-8', 'T1x3@8,B2x3-8', 'T1x3@8.5,B2x3-8', 'T1x2@8.5,B2x2-8', 'T1x3@6,B1x3-5'] },
-          { x: 'seateddb', s: '3x8', rest: 90 },
+        fri: { title: 'Shoulders + Arms', kind: 'lift', min: 70, warm: 'upper', items: [
+          { x: 'press', base: 'press', rest: 180, s: ['T1x3@8,B2x3-10', 'T1x3@8,B2x3-10', 'T1x2@8.5,B2x2-10', 'T1x2@8.5,B2x2-10', 'T1x2@6,B1x2-5'] },
+          { x: 'pushpress', base: 'press', rest: 120, s: ['4x3@100', '4x3@105', '4x2@110', '4x2@110', '2x3@85'] },
           { x: 'laterals', s: '3x15', rest: 45 },
+          { x: 'reardelt', s: '3x15', rest: 45 },
           ...armWork('3x10', '3x12', '2x15', [true, true, true, true, false]),
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
         ] },
-        sat: { title: 'Bursts', kind: 'cond', min: 30, warm: 'speed', items: [
-          { x: 'start3', s: '8x5yd', rest: 40 },
+        sat: { title: 'Sled + Bursts', kind: 'cond', min: 40, items: [
           { x: 'yoke', s: '4x30yd', rest: 90 },
-          { x: 'drive', s: '1x12plays' },
+          { x: 'sledsprint', s: '8x15yd', rest: 60 },
+          { x: 'drive', s: '1x8plays' },
+          { x: 'dbrow', s: '4x10/side', rest: 60 },
         ] },
       },
       override: { 32: testWeek(easyDay) },
     },
     {
-      id: 'camp', name: 'Camp Ready', from: 33, to: 38, color: 'ink', deload: [35], test: 36,
-      goal: 'Football shape. Hold the strength and arrive ready for camp.',
-      why: 'Conditioning takes over, built around how linemen actually play: 5-second bursts with short rest. Arm volume comes down to stay fresh. Week 38 is a taper.',
+      id: 'camp', name: 'Speed + Camp', from: 33, to: 38, color: 'ink', deload: [35], test: 36,
+      goal: 'Football shape. Hold the size and strength and arrive fast.',
+      why: 'Conditioning takes over, built around how linemen actually play: 5-second bursts with short rest. Lifting holds size and strength, and Week 38 is a taper.',
       days: {
         mon: { title: 'Lower Hold', kind: 'lift', min: 55, warm: 'lower', items: [
           { x: 'squat', base: 'squat', rest: 210, s: ['T1x2@8,B2x2-8', 'T1x2@8.5,B2x2-8', 'T1x3@6,B1x3-5', null, 'T1x2@7,B1x2-8', 'T1x2@6'] },
           { x: 'rdl', base: 'deadlift', rest: 120, s: ['3x5@65', '3x5@65', '2x5@55', null, '2x5@60', '2x5@50'] },
-          { x: 'legcurl', s: '3x8', rest: 60 },
+          { x: 'legext', s: ['2x15', '2x15', '2x15', null, '2x15', null], rest: 60 },
+          { x: 'legcurl', s: ['2x12', '2x12', '2x12', null, '2x12', null], rest: 60 },
           { x: 'pallof', s: '3x10/side', e: 'Moderate', rest: 45 },
         ] },
-        tue: { title: 'Upper Hold', kind: 'lift', min: 55, warm: 'upper', items: [
+        tue: { title: 'Upper Hold', kind: 'lift', min: 60, warm: 'upper', items: [
           { x: 'bench', base: 'bench', rest: 210, s: ['T1x2@8,B2x2-8', 'T1x2@8.5,B2x2-8', 'T1x3@6,B1x3-5', null, 'T1x2@7,B1x2-8', 'T1x2@6'] },
           { x: 'pulldown', s: '3x8', rest: 90 },
+          { x: 'csrow', s: ['3x8', '3x8', '3x8', null, '3x8', null], rest: 75 },
           { x: 'seateddb', s: '3x8', rest: 90 },
+          { x: 'laterals', s: ['3x15', '3x15', '3x15', null, '3x15', null], rest: 45 },
+          { x: 'facepull', s: '3x15', e: 'Light', rest: 45 },
           { x: 'neck', s: '3x12', e: 'Light', rest: 45 },
         ] },
         wed: { title: 'Drive Day', kind: 'cond', min: 40, warm: 'speed', note: 'Go early or late in the day. Water before, during and after. Stop if dizzy, confused, or the headache will not quit.', items: [
@@ -498,9 +523,11 @@
           { x: 'drive', s: '2x16plays', rest: 240 },
           { x: 'mobility', s: '1x10min' },
         ] },
-        thu: { title: 'Pull Hold', kind: 'lift', min: 55, warm: 'lower', items: [
+        thu: { title: 'Pull Hold', kind: 'lift', min: 60, warm: 'lower', items: [
           { x: 'clean', base: 'clean', rest: 150, s: ['4x2@80', '3x2@85', '3x2@65', null, '3x2@70', '2x2@60'] },
           { x: 'deadlift', base: 'deadlift', rest: 210, s: ['T1x2@8,B2x2-8', 'T1x2@8.5,B1x2-8', 'T1x2@6,B1x2-5', null, 'T1x2@7,B1x2-8', 'T1x2@6'] },
+          { x: 'dbrow', s: ['2x10/side', '2x10/side', '2x10/side', null, '2x10/side', null], rest: 60 },
+          { x: 'shrug', s: ['4x10', '4x10', '4x10', null, '4x10', null], rest: 60 },
           { x: 'sledpush', s: '4x15yd', rest: 75 },
         ] },
         fri: { title: 'Shoulders + Arms', kind: 'lift', min: 55, warm: 'upper', items: [
@@ -526,7 +553,7 @@
   const ramp = PHASES[0].days;
   PHASES.unshift({
     id: 'kickoff', name: 'Kickoff', from: 0, to: 0, color: 'white',
-    goal: 'Get started. Upper today, then the normal Thursday through Saturday.',
+    goal: 'Get started. Upper on Wednesday, then the normal Thursday through Saturday.',
     why: 'A short first week using Week 1 weights. Week 1 starts Monday, Nov 9.',
     days: { wed: ramp.tue, thu: ramp.thu, fri: ramp.fri, sat: ramp.sat },
   });
@@ -537,12 +564,15 @@
     2: 'Saturday: run the 10-yard, shuttle, vertical and broad once for a baseline if you can. Log them under Progress.',
     3: 'Thanksgiving is Thursday. Lift Wednesday instead, skip the speed session, and eat.',
     7: "Lighter week before the first max-out. Christmas is Friday, so move Friday's session to Saturday.",
-    8: "First max-out week, during Christmas break. New Year's Day is Friday, so move the press max to Saturday if needed.",
+    8: "First max-out week, during Christmas break. Size weeks do not peak strength, so a small jump is normal. New Year's Day is Friday, so move the press max to Saturday if needed.",
+    9: 'Size 2 starts. Top sets drop to 6 reps so the weight on the bar climbs.',
     14: 'Max-out week. Sleep and eat like it matters. New maxes reset every weight in the plan.',
-    20: 'Max-out week. This one comes off the heaviest block of the year.',
+    15: 'Strength starts. Reps come down and the top sets get heavy.',
+    20: 'Max-out week. Everything from the Strength phase gets tested here.',
+    21: 'Max Strength starts. This is the heaviest block of the year.',
     23: 'College coaches are often at high schools in April and May. Be early, be in the weight room, look the part.',
-    26: 'Max-out week. These are the numbers for camp season.',
-    27: 'Camp season. On any camp week, skip Saturday and drop the Thursday deadlift.',
+    26: 'Max-out week, off the heaviest block of the year. These are the numbers for camp season.',
+    27: 'Power + Speed starts. All the size and strength turns into speed now. On any camp week, skip Saturday and drop the Thursday deadlift.',
     32: 'Max-out week. If a camp lands this week, move the test to the next open week.',
     33: 'Summer heat. Get the running done early or late and drink water all day.',
     36: 'Final max-out week. Last set of numbers before senior year.',
