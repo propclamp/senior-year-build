@@ -3,7 +3,8 @@
    Scheme strings: "4x8@70" = 4 sets of 8 at 70% of the base lift's max.
    "1x5+@75" = last set for max reps, stopping 1 rep short of failure. Groups are joined with commas. */
 (function (root) {
-  const START = '2026-11-09';
+  const START = '2026-11-09'; /* Monday of Week 1 */
+  const KICKOFF = '2026-11-04'; /* First session, in the short Week 0 before it */
   const WEEKS = 38;
   const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
   const DAY_NAME = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
@@ -504,7 +505,17 @@
     },
   ];
 
+  /* Week 0 is the partial first week: Upper on Wednesday, then the normal Thursday through Saturday */
+  const ramp = PHASES[0].days;
+  PHASES.unshift({
+    id: 'kickoff', name: 'Kickoff', from: 0, to: 0, color: 'white',
+    goal: 'Get started. Upper today, then the normal Thursday through Saturday.',
+    why: 'A short first week using Week 1 weights. Week 1 starts Monday, Nov 9.',
+    days: { wed: ramp.tue, thu: ramp.thu, fri: ramp.fri, sat: ramp.sat },
+  });
+
   const WEEK_NOTES = {
+    0: 'Kickoff week. Upper today, then the normal Thursday through Saturday. Sunday is off and Week 1 starts Monday.',
     1: 'Heavier start than a normal first week, so stay smooth. Get every rep perfect and do not chase extra weight yet.',
     2: 'Saturday: run the 10-yard, shuttle, vertical and broad once for a baseline if you can. Log them under Progress.',
     3: 'Thanksgiving is Thursday. Lift Wednesday instead, skip the speed session, and eat.',
@@ -586,7 +597,7 @@
     return { title: tpl.title, kind: tpl.kind, min: tpl.min, note: tpl.note || '', warm: WU[tpl.warm] || [], items, w, d, phase: p, deload };
   }
 
-  const api = { START, WEEKS, DAYS, DAY_NAME, LIFTS, METRICS, EX, PHASES, WEEK_NOTES, RULES, RECRUIT, phaseOf, isDeload, isTest, session, round5 };
+  const api = { START, KICKOFF, WEEKS, DAYS, DAY_NAME, LIFTS, METRICS, EX, PHASES, WEEK_NOTES, RULES, RECRUIT, phaseOf, isDeload, isTest, session, round5 };
   if (typeof module !== 'undefined') module.exports = api;
   root.PROGRAM = api;
 })(typeof window !== 'undefined' ? window : globalThis);

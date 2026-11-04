@@ -26,7 +26,8 @@
   const dateOf = (w, d) => addDays(P.START, (w - 1) * 7 + P.DAYS.indexOf(d));
   const short = (s) => toDate(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const long = (s) => toDate(s).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  const clampWeek = (w) => Math.min(P.WEEKS, Math.max(1, w));
+  const clampWeek = (w) => Math.min(P.WEEKS, Math.max(0, w));
+  const weekName = (w) => (w ? `Week ${w}` : 'Kickoff');
 
   const S = {
     code: null, role: null,
@@ -156,10 +157,8 @@
   }
 
   function fieldStrip(w) {
-    const t = today();
-    const started = t >= P.START;
-    const week = started ? clampWeek(w) : 0;
-    const yard = started ? ((week - 1) / (P.WEEKS - 1)) * 100 : 0;
+    const week = clampWeek(w);
+    const yard = week > 1 ? ((week - 1) / (P.WEEKS - 1)) * 100 : 0;
     const X = (y) => 34 + y * 2.92;
     let lines = '';
     for (let y = 0; y <= 100; y += 5) {
@@ -168,17 +167,17 @@
       if (!major) lines += `<line x1="${X(y)}" x2="${X(y)}" y1="46" y2="52" stroke="#fff" stroke-opacity=".4" stroke-width="1"/>`;
       if (major && y > 0 && y < 100) lines += `<text x="${X(y)}" y="34" fill="#fff" fill-opacity=".8" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="800" font-size="13">${y <= 50 ? y : 100 - y}</text>`;
     }
-    const seg = P.PHASES.map(p => {
+    const seg = P.PHASES.filter(p => p.from > 0).map(p => {
       const a = X(((p.from - 1) / (P.WEEKS - 1)) * 100), b = X((Math.min(p.to, P.WEEKS - 1) / (P.WEEKS - 1)) * 100);
       return `<rect x="${a}" y="58" width="${Math.max(b - a - 1, 2)}" height="6" style="fill:var(--plate-${p.color})"/>`;
     }).join('');
     const bx = X(yard);
-    return `<svg viewBox="0 0 360 64" role="img" aria-label="Progress toward fall camp: week ${week} of ${P.WEEKS}">
+    return `<svg viewBox="0 0 360 64" role="img" aria-label="Progress toward fall camp: ${weekName(week)} of ${P.WEEKS} weeks">
       <rect width="360" height="58" fill="#1F6E3F"/>
       <rect x="34" width="292" height="58" fill="#1A6036"/>
       <rect width="34" height="58" fill="#14324F"/>
       <rect x="326" width="34" height="58" style="fill:var(--plate-orange)"/>
-      <text transform="translate(21 29) rotate(-90)" fill="#fff" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="13" letter-spacing="1">NOV 9</text>
+      <text transform="translate(21 29) rotate(-90)" fill="#fff" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="13" letter-spacing="1">NOV 4</text>
       <text transform="translate(347 29) rotate(90)" fill="#fff" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="13" letter-spacing="1">CAMP</text>
       ${lines}${seg}
       <line x1="${bx}" x2="${bx}" y1="0" y2="58" stroke="#FFD24A" stroke-width="2"/>
@@ -188,12 +187,8 @@
   }
 
   function fieldBlock(w) {
-    const t = today();
-    if (t < P.START) {
-      const n = dayDiff(P.START, t);
-      return `<div class="field">${fieldStrip(1)}<div class="field-cap"><span><strong>Kickoff in ${n} day${n === 1 ? '' : 's'}</strong></span><span>38 weeks to camp</span></div></div>`;
-    }
     const wk = clampWeek(w);
+    if (wk === 0) return `<div class="field">${fieldStrip(0)}<div class="field-cap"><span><strong>Kickoff Week</strong> &middot; Ball on own 1</span><span>${P.WEEKS} weeks to camp</span></div></div>`;
     const yard = Math.max(1, Math.round(((wk - 1) / (P.WEEKS - 1)) * 100));
     const spot = yard === 50 ? 'Ball at midfield' : yard < 50 ? `Ball on own ${yard}` : `Ball on opp ${100 - yard}`;
     const left = P.WEEKS - wk;
@@ -207,10 +202,9 @@
 
   function renderToday() {
     const t = today();
-    const pre = t < P.START;
     const over = t > END;
-    const w = pre ? 1 : currentWeek();
-    if (!S.day) S.day = pre || over ? 'mon' : dayOf(t);
+    const w = currentWeek();
+    if (!S.day) S.day = over ? 'mon' : dayOf(t);
     const days = P.DAYS.map(d => {
       const st = dayState(w, d);
       const date = dateOf(w, d);
@@ -219,10 +213,10 @@
     }).join('');
     return `${topBar()}${fieldBlock(w)}
       ${coachNoteBanner()}
-      ${pre ? preGame() : ''}
       ${over ? '<div class="section"><div class="notice"><b>Done</b>All 38 weeks are in the books. Fall camp is here.</div></div>' : ''}
       <div class="days">${days}</div>
-      ${sessionBody(w, S.day)}`;
+      ${sessionBody(w, S.day)}
+      ${w === 0 ? preGame() : ''}`;
   }
 
   function coachNoteBanner() {
@@ -236,17 +230,14 @@
   }
 
   function preGame() {
-    const hasBW = !!latestBW();
     const items = [
-      [true, 'Check the maxes', 'Settings, gear icon up top', 'sheet'],
-      [hasBW, 'Enter bodyweight', 'Sets the calorie target on the Fuel tab', 'fuel'],
-      [false, 'Read the rules', 'Bottom of the Fuel tab', 'fuel'],
-      [false, 'Add this to the home screen', 'Share button, then Add to Home Screen', 'sheet'],
+      ['Check the maxes', 'The strict press and clean are estimates. Fix them in Settings', 'sheet'],
+      ['Read the rules', 'Bottom of the Fuel tab', 'fuel'],
+      ['Add this to the home screen', 'Settings has the steps', 'sheet'],
     ];
-    return `<div class="section"><h2>Starts Monday, Nov 9</h2>
-      <p class="muted">Take the rest of this week easy after the season. Before Monday, knock these out:</p>
-      <div class="card">${items.map(i => `<button class="check ${hasBW && i[1].includes('bodyweight') ? 'on' : ''}" data-act="${i[3] === 'sheet' ? 'sheet' : 'tab'}" data-tab="${i[3]}">
-        <span class="bx">${ICON.check}</span><span><b>${i[1]}</b><br><span class="muted small">${i[2]}</span></span></button>`).join('')}</div></div>`;
+    return `<div class="section"><h2>Getting Set Up</h2>
+      <div class="card">${items.map(i => `<button class="check" data-act="${i[2] === 'sheet' ? 'sheet' : 'tab'}" data-tab="${i[2]}">
+        <span class="bx">${ICON.check}</span><span><b>${i[0]}</b><br><span class="muted small">${i[1]}</span></span></button>`).join('')}</div></div>`;
   }
 
   /* session */
@@ -347,7 +338,7 @@
     }
     const log = sessLog(w, d);
     const wn = P.WEEK_NOTES[w];
-    const showNote = wn && (d === 'mon' || s.kind === 'test');
+    const showNote = wn && (d === 'mon' || (w === 0 && dateOf(w, d) === P.KICKOFF) || s.kind === 'test');
     const finished = log && log.status === 'done';
     return `<div class="sess-head">
         <div class="meta"><span>${long(date)}</span>${phaseChip(s.phase)}${P.isTest(w) ? '<span class="chip test">Test week</span>' : ''}${s.deload ? '<span class="chip deload">Deload</span>' : ''}</div>
@@ -401,8 +392,7 @@
   }
   function ctx() {
     if (S.open) return S.open;
-    const t = today();
-    return { w: t < P.START ? 1 : currentWeek(), d: S.day };
+    return { w: currentWeek(), d: S.day };
   }
   function writeSet(k, i, fields) {
     const { w, d } = ctx();
@@ -445,7 +435,7 @@
 
   /* plan */
   function renderPlan() {
-    const w = today() < P.START ? 1 : currentWeek();
+    const w = currentWeek();
     const open = S.phaseOpen == null ? P.phaseOf(w).id : S.phaseOpen;
     const phases = P.PHASES.map(p => {
       const isOpen = open === p.id;
@@ -456,18 +446,18 @@
           const st = P.DAYS.slice(0, 6).map(d => `<i class="${dayState(k, d)}"></i>`).join('');
           const tag = P.isTest(k) ? '<span class="chip test">Test</span>' : P.isDeload(k) ? '<span class="chip deload">Deload</span>' : '';
           const wkOpen = S.weekOpen === k;
-          const rows = wkOpen ? P.DAYS.slice(0, 6).map(d => {
+          const rows = wkOpen ? P.DAYS.slice(0, 6).filter(d => dateOf(k, d) >= P.KICKOFF).map(d => {
             const s = P.session(k, d, maxes());
             const ds = dayState(k, d);
             return `<button class="dayrow" data-act="open" data-w="${k}" data-d="${d}"><span>${P.DAY_NAME[d]} ${short(dateOf(k, d))} &middot; <b>${esc(s.kind === 'rest' ? 'Rest' : s.title)}</b></span><span class="mk ${ds}">${MARK[ds] || ''}</span></button>`;
           }).join('') : '';
-          wks.push(`<div class="wk"><button class="wk-head ${k === w ? 'wk-now' : ''}" data-act="week" data-w="${k}" aria-expanded="${wkOpen}"><span>Week ${k} <span class="muted small">${short(dateOf(k, 'mon'))}</span> ${tag}</span><span class="dts">${st}</span></button>${rows}</div>`);
+          wks.push(`<div class="wk"><button class="wk-head ${k === w ? 'wk-now' : ''}" data-act="week" data-w="${k}" aria-expanded="${wkOpen}"><span>${weekName(k)} <span class="muted small">${short(k ? dateOf(k, 'mon') : P.KICKOFF)}</span> ${tag}</span><span class="dts">${st}</span></button>${rows}</div>`);
         }
         body = `<div class="phase-body"><p class="small muted" style="padding-bottom:8px">${esc(p.why)}</p>${wks.join('')}</div>`;
       }
       return `<section class="phase"><button class="phase-head" data-act="phase" data-p="${p.id}" aria-expanded="${isOpen}">
-        <span class="row"><h3><span class="dot c-${p.color}"></span>${esc(p.name)}</h3><span class="muted small">Wk ${p.from}-${p.to}</span></span>
-        <span class="muted small">${short(dateOf(p.from, 'mon'))} to ${short(dateOf(p.to, 'sun'))}. ${esc(p.goal)}</span>
+        <span class="row"><h3><span class="dot c-${p.color}"></span>${esc(p.name)}</h3><span class="muted small">${p.from ? `Wk ${p.from}-${p.to}` : 'Week 0'}</span></span>
+        <span class="muted small">${short(p.from ? dateOf(p.from, 'mon') : P.KICKOFF)} to ${short(dateOf(p.to, 'sun'))}. ${esc(p.goal)}</span>
       </button>${body}</section>`;
     }).join('');
     return `${topBar()}${fieldBlock(w)}
@@ -477,7 +467,7 @@
   }
 
   /* charts */
-  const X0 = P.START, X1 = END;
+  const X0 = P.KICKOFF, X1 = END;
   function lineChart({ pts, guide, yPad, unit, id }) {
     const W = 340, H = 170, L = 34, R = 12, T = 12, B = 22;
     const ys = pts.map(p => p.y).concat((guide || []).map(g => g.y));
@@ -513,7 +503,7 @@
 
   function liftPoints(lift) {
     const pr = profile();
-    const pts = [{ d: P.START, y: pr.start[lift], est: !!(pr.est || {})[lift], label: 'Starting max' }];
+    const pts = [{ d: P.KICKOFF, y: pr.start[lift], est: !!(pr.est || {})[lift], label: 'Starting max' }];
     for (const m of live('m:')) if (m.lift === lift) pts.push({ d: m.date, y: m.value, est: m.source === 'estimate', label: m.source === 'test' ? 'Tested max' : 'Updated max' });
     for (const s of live('s:')) {
       const e = s.ex && s.ex[lift];
@@ -539,8 +529,7 @@
   }
 
   function renderProgress() {
-    const t = today();
-    const w = t < P.START ? 1 : currentWeek();
+    const w = currentWeek();
     const pr = profile();
     const mx = maxes();
     const big = ['squat', 'bench', 'deadlift'];
@@ -568,7 +557,7 @@
     });
 
     const bwPts = live('c:').filter(c => c.bw).map(c => ({ d: c.date, y: c.bw, label: 'Bodyweight' }));
-    if (!bwPts.length && pr.bw0) bwPts.push({ d: P.START, y: pr.bw0, label: 'Starting weight' });
+    if (!bwPts.length && pr.bw0) bwPts.push({ d: P.KICKOFF, y: pr.bw0, label: 'Starting weight' });
     let bwChart = '<p class="muted">Enter bodyweight on the Fuel tab to start this chart.</p>';
     if (bwPts.length) {
       const first = bwPts.slice().sort((a, b) => a.d < b.d ? -1 : 1)[0];
@@ -576,10 +565,10 @@
       bwChart = lineChart({ id: 'bodyweight', unit: 'lb', yPad: 4, pts: bwPts, guide: [{ d: first.d, y: first.y }, { d: X1, y: goalBW, label: `Goal ${goalBW}` }] });
     }
 
-    const first = Math.max(1, Math.min(w - 4, P.WEEKS - 5));
+    const first = Math.max(0, Math.min(w - 4, P.WEEKS - 5));
     let grid = `<span></span>${['M', 'T', 'W', 'T', 'F', 'S'].map(h => `<span class="h">${h}</span>`).join('')}`;
     for (let k = first; k < first + 6; k++) {
-      grid += `<span class="wl">Wk ${k}</span>`;
+      grid += `<span class="wl">${k ? 'Wk ' + k : 'Kickoff'}</span>`;
       for (const d of P.DAYS.slice(0, 6)) {
         const st = dayState(k, d);
         grid += `<span class="cell ${st === 'rest' ? 'off' : st}" title="Week ${k} ${P.DAY_NAME[d]}: ${st}">${MARK[st] || ''}</span>`;
@@ -598,7 +587,7 @@
     return `${topBar()}
       <h1 style="margin-top:6px">Progress</h1>
 
-      <div class="section"><div class="row"><h2>${t < P.START ? 'Week 1' : 'This Week'}</h2><span class="muted small">Week ${w} of ${P.WEEKS}</span></div>
+      <div class="section"><div class="row"><h2>This Week</h2><span class="muted small">${w ? `Week ${w} of ${P.WEEKS}` : 'Kickoff Week'}</span></div>
       <div class="card"><div class="stats">
         <div class="stat"><span class="v">${wk.done}/${wk.total}</span><span class="l">Sessions done</span></div>
         <div class="stat"><span class="v">${fmt(wk.lbs)}</span><span class="l">Pounds moved</span></div>
@@ -835,7 +824,7 @@
     back() { S.open = null; render(true); },
     sheet() { S.sheet = true; render(); },
     closeSheet() { S.sheet = false; render(); },
-    phase(t) { const p = t.dataset.p; const cur = S.phaseOpen == null ? P.phaseOf(today() < P.START ? 1 : currentWeek()).id : S.phaseOpen; S.phaseOpen = cur === p ? '' : p; S.weekOpen = null; render(true); },
+    phase(t) { const p = t.dataset.p; const cur = S.phaseOpen == null ? P.phaseOf(currentWeek()).id : S.phaseOpen; S.phaseOpen = cur === p ? '' : p; S.weekOpen = null; render(true); },
     week(t) { const k = +t.dataset.w; S.weekOpen = S.weekOpen === k ? null : k; render(true); },
     tick(t) {
       const row = t.closest('.setrow');
