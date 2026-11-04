@@ -55,6 +55,7 @@
     const m = { ...profile().start };
     const rows = live('m:').sort((a, b) => a.date < b.date ? -1 : 1);
     for (const r of rows) m[r.lift] = r.value;
+    if (m.press == null) m.press = P.round5(m.bench * .62);
     return m;
   }
   const maxIsEst = (lift) => !!(profile().est || {})[lift] && !live('m:').some(r => r.lift === lift);
@@ -136,10 +137,16 @@
     fuel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a3 3 0 0 0 3 3v7M4 3v5a3 3 0 0 0 3 3M10 3v5M17 3c-2 1.5-3 4-3 7 0 2 1 3 3 3v8"/></svg>',
   };
 
+  function athlete() {
+    const p = profile();
+    return p.name ? { name: p.name, num: p.number } : null;
+  }
+
   function topBar() {
     const coach = S.role === 'coach';
+    const a = athlete();
     return `<header class="top">
-      <div class="brand">Senior Year <b>Build</b></div>
+      <div class="brand">${a ? `${esc(a.name)} <b>#${esc(a.num)}</b>` : 'Senior Year <b>Build</b>'}</div>
       <div class="top-right">
         ${coach ? '<span class="chip">Coach</span>' : ''}
         <span class="sync" id="sync"><i></i><span>Synced</span></span>
@@ -187,7 +194,7 @@
       return `<div class="field">${fieldStrip(1)}<div class="field-cap"><span><strong>Kickoff in ${n} day${n === 1 ? '' : 's'}</strong></span><span>38 weeks to camp</span></div></div>`;
     }
     const wk = clampWeek(w);
-    const yard = Math.round(((wk - 1) / (P.WEEKS - 1)) * 100);
+    const yard = Math.max(1, Math.round(((wk - 1) / (P.WEEKS - 1)) * 100));
     const spot = yard === 50 ? 'Ball at midfield' : yard < 50 ? `Ball on own ${yard}` : `Ball on opp ${100 - yard}`;
     const left = P.WEEKS - wk;
     return `<div class="field">${fieldStrip(wk)}<div class="field-cap"><span><strong>Week ${wk} of ${P.WEEKS}</strong> &middot; ${spot}</span><span>${left ? left + ' to camp' : 'Camp week'}</span></div></div>`;
@@ -233,7 +240,7 @@
     const items = [
       [true, 'Check the maxes', 'Settings, gear icon up top', 'sheet'],
       [hasBW, 'Enter bodyweight', 'Sets the calorie target on the Fuel tab', 'fuel'],
-      [false, 'Read the rules', 'Seven rules, bottom of Fuel', 'fuel'],
+      [false, 'Read the rules', 'Bottom of the Fuel tab', 'fuel'],
       [false, 'Add this to the home screen', 'Share button, then Add to Home Screen', 'sheet'],
     ];
     return `<div class="section"><h2>Starts Monday, Nov 9</h2>
@@ -326,8 +333,8 @@
     return `<article class="ex ${complete ? 'complete' : ''}" data-ex="${it.key}">
       ${heading}
       ${it.note ? `<p class="small"><b>${esc(it.note)}</b></p>` : ''}
-      ${it.base && !it.test && mainW ? plateRow(topW) : ''}
-      <p class="cue">${esc(it.cue)}${it.main && !it.test && mainW ? ' ' + esc(ramp(mainW)) + '.' : ''}</p>
+      ${it.base && !it.test && !it.noPlates && mainW ? plateRow(topW) : ''}
+      <p class="cue">${esc(it.cue)}${it.main && !it.test && ramp(mainW) ? ' ' + esc(ramp(mainW)) + '.' : ''}</p>
       ${rows}
     </article>`;
   }
@@ -373,8 +380,8 @@
           <div class="stat"><span class="v">${short(log.date)}</span><span class="l">Logged</span></div>
         </div>
         ${log.note ? `<p>${esc(log.note)}</p>` : ''}
-        ${offers.map(o => `<div class="notice"><b>New ${esc(P.LIFTS[o.lift])} max</b>${o.value} lb, up from ${o.from}. Save it to raise every weight in the plan.
-          <div class="row" style="margin-top:8px"><button class="btn slim" data-act="acceptMax" data-lift="${o.lift}" data-v="${o.value}" data-date="${log.date}">Save ${o.value}</button></div></div>`).join('')}
+        ${offers.map(o => `<div class="notice"><b>New ${esc(P.LIFTS[o.lift])} max</b>${o.est ? `That max-rep set points to about ${o.value} lb` : `${o.value} lb`}, up from ${o.from}. Save it to raise every weight in the plan.
+          <div class="row" style="margin-top:8px"><button class="btn slim" data-act="acceptMax" data-lift="${o.lift}" data-v="${o.value}" data-date="${log.date}" data-est="${o.est ? '1' : ''}">Save ${o.value}</button></div></div>`).join('')}
         <button class="btn ghost block" data-act="reopen" data-w="${w}" data-d="${d}">Edit this workout</button></div>`;
     }
     const rpe = (log && log.rpe) || 0;
@@ -465,7 +472,7 @@
     }).join('');
     return `${topBar()}${fieldBlock(w)}
       <div class="section"><h2>The 38-Week Plan</h2>
-      <p class="muted">Four lifts a week, plus a short speed day and a Saturday sled day. Weights come from the current maxes, so they go up after every test.</p>
+      <p class="muted">Four lifts a week, a speed day with an arm pump, and a Saturday yoke and sled day. Six max-out weeks keep the weights climbing.</p>
       ${phases}</div>`;
   }
 
@@ -507,7 +514,7 @@
   function liftPoints(lift) {
     const pr = profile();
     const pts = [{ d: P.START, y: pr.start[lift], est: !!(pr.est || {})[lift], label: 'Starting max' }];
-    for (const m of live('m:')) if (m.lift === lift) pts.push({ d: m.date, y: m.value, label: 'Tested max' });
+    for (const m of live('m:')) if (m.lift === lift) pts.push({ d: m.date, y: m.value, est: m.source === 'estimate', label: m.source === 'test' ? 'Tested max' : 'Updated max' });
     for (const s of live('s:')) {
       const e = s.ex && s.ex[lift];
       if (!e) continue;
@@ -554,7 +561,7 @@
         <div class="row small muted"><span>Started ${pr.start[l]}</span><span>Goal ${pr.goals[l]}</span></div></div>`;
     }).join('');
 
-    const seg = Object.keys(P.LIFTS).map(l => `<button class="${S.lift === l ? 'on' : ''}" data-act="lift" data-l="${l}">${esc({ squat: 'Squat', bench: 'Bench', deadlift: 'Dead', clean: 'Clean' }[l])}</button>`).join('');
+    const seg = Object.keys(P.LIFTS).map(l => `<button class="${S.lift === l ? 'on' : ''}" data-act="lift" data-l="${l}">${esc({ squat: 'Squat', bench: 'Bench', deadlift: 'Dead', clean: 'Clean', press: 'Press' }[l])}</button>`).join('');
     const strength = lineChart({
       id: 'strength', unit: 'lb', yPad: 10, pts: liftPoints(S.lift),
       guide: [{ d: X0, y: pr.goals[S.lift] }, { d: X1, y: pr.goals[S.lift], label: `Goal ${pr.goals[S.lift]}` }],
@@ -565,8 +572,8 @@
     let bwChart = '<p class="muted">Enter bodyweight on the Fuel tab to start this chart.</p>';
     if (bwPts.length) {
       const first = bwPts.slice().sort((a, b) => a.d < b.d ? -1 : 1)[0];
-      const gain = (dayDiff(X1, first.d) / 7) * 0.6;
-      bwChart = lineChart({ id: 'bodyweight', unit: 'lb', yPad: 4, pts: bwPts, guide: [{ d: first.d, y: first.y }, { d: X1, y: Math.round(first.y + gain), label: `Pace ${Math.round(first.y + gain)}` }] });
+      const goalBW = pr.bwGoal || Math.round(first.y + (dayDiff(X1, first.d) / 7) * 0.7);
+      bwChart = lineChart({ id: 'bodyweight', unit: 'lb', yPad: 4, pts: bwPts, guide: [{ d: first.d, y: first.y }, { d: X1, y: goalBW, label: `Goal ${goalBW}` }] });
     }
 
     const first = Math.max(1, Math.min(w - 4, P.WEEKS - 5));
@@ -615,7 +622,7 @@
         <p class="small muted">Solid dots are tested maxes. Hollow dots are estimates from max-rep sets.</p></div></div>
 
       <div class="section"><div class="row"><h2>Bodyweight</h2><span class="muted small">${bw ? bw + ' lb now' : ''}</span></div>
-      <div class="card">${bwChart}<p class="small muted">The dashed line is a steady pace of about 0.6 lb a week.</p></div></div>
+      <div class="card">${bwChart}<p class="small muted">The dashed line is a steady pace to the camp goal, about 0.7 lb a week.</p></div></div>
 
       <div class="section"><h2>Showing Up</h2><div class="card"><div class="grid6">${grid}</div>
         <div class="legend"><span>✓ Done</span><span>• Started</span><span>✕ Missed</span></div></div></div>
@@ -751,6 +758,11 @@
     else if (S.open) html = `${topBar()}<button class="back" data-act="back">&larr; Back</button>${sessionBody(S.open.w, S.open.d)}`;
     else html = { today: renderToday, plan: renderPlan, progress: renderProgress, fuel: renderFuel }[S.tab]();
     $('#app').innerHTML = html;
+    const a = athlete();
+    if (a) {
+      document.title = `${a.name} #${a.num}`;
+      $('meta[name="apple-mobile-web-app-title"]').content = `${a.name.split(' ')[0]} #${a.num}`;
+    }
     tabsBar();
     paintSync();
     window.scrollTo(0, keepScroll ? y : 0);
@@ -780,6 +792,7 @@
   function signOut(msg) {
     for (const k of ['code', 'role', 'rows', 'outbox', 'since', 'lastSync']) LS.del(k);
     S.code = null; S.role = null; S.rows = {}; S.outbox = {}; S.since = null; S.sheet = false; S.syncing = false;
+    document.title = 'Senior Year Build';
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     renderLock(msg);
   }
@@ -864,9 +877,21 @@
       const s = P.session(w, d, maxes());
       const mx = maxes();
       S.offers = S.offers.filter(o => !(o.w === w && o.d === d));
-      for (const it of s.items.filter(x => x.test)) {
-        const best = ((log.ex[it.key] || {}).sets || []).filter(x => x && x.done && x.w && x.r >= 1).reduce((m, x) => Math.max(m, x.w), 0);
-        if (best > mx[it.key]) S.offers.push({ w, d, lift: it.key, value: best, from: mx[it.key] });
+      for (const it of s.items.filter(x => P.LIFTS[x.key])) {
+        const sets = (log.ex[it.key] || {}).sets || [];
+        if (it.test) {
+          const best = sets.filter(x => x && x.done && x.w && x.r >= 1).reduce((m, x) => Math.max(m, x.w), 0);
+          if (best > mx[it.key]) S.offers.push({ w, d, lift: it.key, value: best, from: mx[it.key] });
+          continue;
+        }
+        /* A max-rep set can show the listed max is out of date before the next test */
+        let est = 0;
+        sets.forEach((x, i) => {
+          const st = it.sets[i];
+          if (x && x.done && st && st.amrap && x.w && x.r) est = Math.max(est, x.w * (1 + Math.min(x.r, 10) / 30));
+        });
+        const value = Math.floor(est / 5) * 5;
+        if (value > mx[it.key]) S.offers.push({ w, d, lift: it.key, value, from: mx[it.key], est: true });
       }
       toast('Workout saved');
       render(true);
@@ -880,7 +905,7 @@
     },
     acceptMax(t) {
       const lift = t.dataset.lift, value = +t.dataset.v, date = t.dataset.date;
-      put(`m:${date}:${lift}`, 'max', { date, lift, value, source: 'test' });
+      put(`m:${date}:${lift}`, 'max', { date, lift, value, source: t.dataset.est ? 'estimate' : 'test' });
       S.offers = S.offers.filter(o => o.lift !== lift);
       toast(`${P.LIFTS[lift]} max is now ${value}`);
       render(true);
